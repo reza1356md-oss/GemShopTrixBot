@@ -60,6 +60,20 @@ def page2_keypad():
     )
 
 
+def order_keypad(confirm_id):
+    builder = ChatKeypadBuilder()
+    return (
+        builder
+        .row(
+            builder.button(id=confirm_id, text="✅ تأیید سفارش")
+        )
+        .row(
+            builder.button(id="cancel_order", text="❌ لغو")
+        )
+        .build()
+    )
+
+
 @bot.on_message(commands=["start"])
 async def start(bot: Robot, message: Message):
     await message.reply_keypad(
@@ -101,31 +115,19 @@ async def back_page(bot: Robot, message: Message):
 
 @bot.on_callback("gem_110")
 async def gem_110(bot: Robot, message: Message):
-    builder = ChatKeypadBuilder()
-    keypad = (
-        builder
-        .row(
-            builder.button(id="confirm_110", text="✅ تأیید سفارش")
-        )
-        .row(
-            builder.button(id="cancel_order", text="❌ لغو")
-        )
-        .build()
-    )
-
     await message.reply_keypad(
         "🛍 سفارش شما\n\n"
         "💎 بسته: 110 Gem\n"
         "💰 قیمت: 275✨\n\n"
         "آیا این بسته را تأیید می‌کنید؟",
-        keypad
+        order_keypad("confirm_110")
     )
 
 
 @bot.on_callback("confirm_110")
 async def confirm_110(bot: Robot, message: Message):
     await message.reply(
-        "✅ سفارش شما تأیید شد.\n\n"
+        "✅ سفارش شما ثبت شد.\n\n"
         "💎 بسته: 110 Gem\n"
         "💰 قیمت: 275✨\n\n"
         "📦 وضعیت سفارش: در انتظار پرداخت"
@@ -134,137 +136,358 @@ async def confirm_110(bot: Robot, message: Message):
 
 @bot.on_callback("gem_231")
 async def gem_231(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "💎 بسته: 231 Gem\n"
+        "💰 قیمت: 518✨\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_231")
+    )
+
+
+@bot.on_callback("confirm_231")
+async def confirm_231(bot: Robot, message: Message):
     await message.reply(
-        "🛒 231 Gem — 518✨ انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "💎 بسته: 231 Gem\n"
+        "💰 قیمت: 518✨\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("gem_583")
 async def gem_583(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "💎 بسته: 583 Gem\n"
+        "💰 قیمت: 1375✨\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_583")
+    )
+
+
+@bot.on_callback("confirm_583")
+async def confirm_583(bot: Robot, message: Message):
     await message.reply(
-        "🛒 583 Gem — 1375✨ انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "💎 بسته: 583 Gem\n"
+        "💰 قیمت: 1375✨\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("gem_1060")
 async def gem_1060(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "💎 بسته: 1060K Gem\n"
+        "💰 قیمت: 2450✨\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_1060")
+    )
+
+
+@bot.on_callback("confirm_1060")
+async def confirm_1060(bot: Robot, message: Message):
     await message.reply(
-        "🛒 1060K Gem — 2450✨ انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "💎 بسته: 1060K Gem\n"
+        "💰 قیمت: 2450✨\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("gem_2180")
 async def gem_2180(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "💎 بسته: 2180K Gem\n"
+        "💰 قیمت: 5,119✨\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_2180")
+    )
+
+
+@bot.on_callback("confirm_2180")
+async def confirm_2180(bot: Robot, message: Message):
     await message.reply(
-        "🛒 2180K Gem — 5,119✨ انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "💎 بسته: 2180K Gem\n"
+        "💰 قیمت: 5,119✨\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("gem_5000")
 async def gem_5000(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "💎 بسته: 5K Gem\n"
+        "💰 قیمت: 12.3 MiL🌟\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_5000")
+    )
+
+
+@bot.on_callback("confirm_5000")
+async def confirm_5000(bot: Robot, message: Message):
     await message.reply(
-        "🛒 5K Gem — 12.3 MiL🌟 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "💎 بسته: 5K Gem\n"
+        "💰 قیمت: 12.3 MiL🌟\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("gem_11000")
 async def gem_11000(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "💎 بسته: 11K GEM\n"
+        "💰 قیمت: 23.890 MiL🌟\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_11000")
+    )
+
+
+@bot.on_callback("confirm_11000")
+async def confirm_11000(bot: Robot, message: Message):
     await message.reply(
-        "🛒 11K GEM — 23.890 MiL🌟 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "💎 بسته: 11K GEM\n"
+        "💰 قیمت: 23.890 MiL🌟\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("monthly_id")
 async def monthly_id(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "📆 بسته: Monthly\n"
+        "💰 قیمت: 2.690💸\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_monthly")
+    )
+
+
+@bot.on_callback("confirm_monthly")
+async def confirm_monthly(bot: Robot, message: Message):
     await message.reply(
-        "🛒 Monthly — 2.690💸 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "📆 بسته: Monthly\n"
+        "💰 قیمت: 2.690💸\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("weekly_id")
 async def weekly_id(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "🗓 بسته: Weekly\n"
+        "💰 قیمت: 549💸\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_weekly")
+    )
+
+
+@bot.on_callback("confirm_weekly")
+async def confirm_weekly(bot: Robot, message: Message):
     await message.reply(
-        "🛒 Weekly — 549💸 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "🗓 بسته: Weekly\n"
+        "💰 قیمت: 549💸\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("info_weekly")
 async def info_weekly(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "📌 بسته: هفتگی (450 جم)\n"
+        "💰 قیمت: 369.000T💸\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_info_weekly")
+    )
+
+
+@bot.on_callback("confirm_info_weekly")
+async def confirm_info_weekly(bot: Robot, message: Message):
     await message.reply(
-        "🛒 هفتگی (450 جم) — 369.000T💸 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "📌 بسته: هفتگی (450 جم)\n"
+        "💰 قیمت: 369.000T💸\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("info_monthly")
 async def info_monthly(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "📌 بسته: ماهانه (2.600 جم)\n"
+        "💰 قیمت: 1.950.000T💸\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_info_monthly")
+    )
+
+
+@bot.on_callback("confirm_info_monthly")
+async def confirm_info_monthly(bot: Robot, message: Message):
     await message.reply(
-        "🛒 ماهانه (2.600 جم) — 1.950.000T💸 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "📌 بسته: ماهانه (2.600 جم)\n"
+        "💰 قیمت: 1.950.000T💸\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("info_light")
 async def info_light(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "📌 بسته: هفتگی لایت (100 جم)\n"
+        "💰 قیمت: 195.000T💸\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_info_light")
+    )
+
+
+@bot.on_callback("confirm_info_light")
+async def confirm_info_light(bot: Robot, message: Message):
     await message.reply(
-        "🛒 هفتگی لایت (100 جم) — 195.000T💸 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "📌 بسته: هفتگی لایت (100 جم)\n"
+        "💰 قیمت: 195.000T💸\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("offer_1")
 async def offer_1(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "🎁 بسته: آفر یک دلاری\n"
+        "💰 قیمت: 220.000T💸\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_offer_1")
+    )
+
+
+@bot.on_callback("confirm_offer_1")
+async def confirm_offer_1(bot: Robot, message: Message):
     await message.reply(
-        "🛒 آفر یک دلاری — 220.000T💸 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "🎁 بسته: آفر یک دلاری\n"
+        "💰 قیمت: 220.000T💸\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("offer_2")
 async def offer_2(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "🎁 بسته: آفر دو دلاری\n"
+        "💰 قیمت: 385.000T💸\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_offer_2")
+    )
+
+
+@bot.on_callback("confirm_offer_2")
+async def confirm_offer_2(bot: Robot, message: Message):
     await message.reply(
-        "🛒 آفر دو دلاری — 385.000T💸 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "🎁 بسته: آفر دو دلاری\n"
+        "💰 قیمت: 385.000T💸\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("levelup")
 async def levelup(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "🏵 بسته: لول آپ پس (1250 Gem)\n"
+        "💰 قیمت: 980\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_levelup")
+    )
+
+
+@bot.on_callback("confirm_levelup")
+async def confirm_levelup(bot: Robot, message: Message):
     await message.reply(
-        "🛒 لول آپ پس (1250 Gem) — 980 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "🏵 بسته: لول آپ پس (1250 Gem)\n"
+        "💰 قیمت: 980\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("level_120")
 async def level_120(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "💎 بسته: 120 جم\n"
+        "💰 قیمت: 185\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_level_120")
+    )
+
+
+@bot.on_callback("confirm_level_120")
+async def confirm_level_120(bot: Robot, message: Message):
     await message.reply(
-        "🛒 120 جم — 185 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "💎 بسته: 120 جم\n"
+        "💰 قیمت: 185\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("level_200")
 async def level_200(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "💎 بسته: 200 جم\n"
+        "💰 قیمت: 230\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_level_200")
+    )
+
+
+@bot.on_callback("confirm_level_200")
+async def confirm_level_200(bot: Robot, message: Message):
     await message.reply(
-        "🛒 200 جم — 230 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "💎 بسته: 200 جم\n"
+        "💰 قیمت: 230\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
 @bot.on_callback("level_350")
 async def level_350(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "💎 بسته: 350 جم\n"
+        "💰 قیمت: 295\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        order_keypad("confirm_level_350")
+    )
+
+
+@bot.on_callback("confirm_level_350")
+async def confirm_level_350(bot: Robot, message: Message):
     await message.reply(
-        "🛒 350 جم — 295 انتخاب شد.\n\n"
-        "برای تکمیل خرید با پشتیبانی در ارتباط باشید."
+        "✅ سفارش شما ثبت شد.\n\n"
+        "💎 بسته: 350 جم\n"
+        "💰 قیمت: 295\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت"
     )
 
 
