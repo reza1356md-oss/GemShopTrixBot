@@ -19,7 +19,7 @@ SHOP_LINK = "https://rubika.ir/TRIX__SHOP"
 GROUP_LINK = "https://rubika.ir/joing/JHGBHFGG0PKMOKLLUWKSWHNFELZKLBUJ"
 
 # شماره کارت فعلی خودت را اینجا نگه دار
-CARD_NUMBER = "شماره کارت خودت"
+CARD_NUMBER = "5022291575298169"
 
 CARD_NAME = "رضا الله مددی آقبلاغی"
 
