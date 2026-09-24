@@ -153,6 +153,15 @@ async def start(bot: Robot, message: Message):
     )
 
 
+@bot.on_message(commands=["myid"])
+async def my_id(bot: Robot, message: Message):
+    await message.reply(
+        "🆔 شناسه چت شما:\n\n"
+        f"{message.chat_id}\n\n"
+        "این شناسه را برای مرحله بعد نگه دار."
+    )
+
+
 @bot.on_message()
 async def normal_message(bot: Robot, message: Message):
     chat_id = message.chat_id
@@ -162,10 +171,8 @@ async def normal_message(bot: Robot, message: Message):
 
     order = pending_orders[chat_id]
     step = order["step"]
-
     text = (message.text or "").strip()
 
-    # دریافت رسید تصویری
     if step == "receipt":
         file_data = getattr(message, "file", None)
 
@@ -181,7 +188,6 @@ async def normal_message(bot: Robot, message: Message):
             )
             return
 
-        # اگر مشتری رسید را به صورت متن فرستاد
         if text:
             order["receipt"] = text
             order["step"] = "waiting_confirmation"
@@ -237,7 +243,6 @@ async def normal_message(bot: Robot, message: Message):
 
 async def send_payment_info(message, order):
     order["step"] = "receipt"
-
     package = order["package"]
 
     await message.reply(
@@ -376,3 +381,14 @@ async def all_callbacks(bot: Robot, message: Message):
 
 
 bot.run()
+
+بعد از جایگزینی
+
+1. فایل را در GitHub ذخیره کن.
+2. صبر کن Railway دوباره Deploy شود.
+3. وارد ربات شو.
+4. این را بفرست:
+   "/myid"
+5. ربات باید یک عدد بهت بدهد.
+
+آن عدد را اینجا بفرست؛ شماره کارت یا رمز یا اطلاعات حساب لازم نیست. بعد من مرحله بعدی را می‌دهم تا رسید و مشخصات سفارش مستقیماً برای خودت ارسال شود.
