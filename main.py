@@ -399,8 +399,7 @@ async def normal_message(bot: Robot, message: Message):
 
         await message.reply(
             "✅ Gmail دریافت شد.\n\n"
-            "📸 لطفاً اطلاعات غیرحساس پشتیبانی/کد موردنیاز سفارش را ارسال کنید.\n\n"
-            "⚠️ رمز عبور حساب را ارسال نکنید."
+            "📸 لطفاً اطلاعات غیرحساس پشتیبانی/کد موردنیاز سفارش را ارسال کنید."
         )
 
         return
@@ -701,9 +700,7 @@ async def all_callbacks(bot: Robot, message: Message):
                 f"💰 قیمت:\n"
                 f"{package['price']}\n\n"
 
-                "📧 لطفاً Gmail مربوط به اکانت را ارسال کنید:\n\n"
-
-                "⚠️ رمز عبور حساب را ارسال نکنید."
+                "📧 لطفاً Gmail مربوط به اکانت را ارسال کنید:"
             )
 
             return
