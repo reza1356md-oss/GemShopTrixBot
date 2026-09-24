@@ -4,16 +4,10 @@ from rubka.keypad import ChatKeypadBuilder
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-await message.reply_keypad(
-    "👋 سلام!\n\n"
-    "به فروشگاه جم خوش اومدی 💎\n\n"
-    "🛍 فروشگاه: @TRIX__SHOP\n"
-    "🔗 https://rubika.ir/TRIX__SHOP\n\n"
-    "از منوی زیر انتخاب کن:",
-    main_menu()
-)
+SHOP_USERNAME = "@TRIX__SHOP"
+SHOP_LINK = "https://rubika.ir/TRIX__SHOP"
 
-# شماره کارت فعلی خودت را در همین خط نگه دار
+# شماره کارت فعلی خودت را اینجا قرار بده
 CARD_NUMBER = "5022291575298169"
 CARD_NAME = "رضا الله مددی آقبلاغی"
 
@@ -93,15 +87,51 @@ PACKAGES = {
     "monthly_id": {"name": "Monthly", "price": "2.690💸", "type": "id"},
     "weekly_id": {"name": "Weekly", "price": "549💸", "type": "id"},
 
-    "info_weekly": {"name": "هفتگی (450 جم)", "price": "369.000T💸", "type": "info"},
-    "info_monthly": {"name": "ماهانه (2.600 جم)", "price": "1.950.000T💸", "type": "info"},
-    "info_light": {"name": "هفتگی لایت (100 جم)", "price": "195.000T💸", "type": "info"},
-    "offer_1": {"name": "آفر یک دلاری", "price": "220.000T💸", "type": "info"},
-    "offer_2": {"name": "آفر دو دلاری", "price": "385.000T💸", "type": "info"},
-    "levelup": {"name": "لول آپ پس (1250 Gem)", "price": "980", "type": "info"},
-    "level_120": {"name": "120 جم", "price": "185", "type": "info"},
-    "level_200": {"name": "200 جم", "price": "230", "type": "info"},
-    "level_350": {"name": "350 جم", "price": "295", "type": "info"}
+    "info_weekly": {
+        "name": "هفتگی (450 جم)",
+        "price": "369.000T💸",
+        "type": "info"
+    },
+    "info_monthly": {
+        "name": "ماهانه (2.600 جم)",
+        "price": "1.950.000T💸",
+        "type": "info"
+    },
+    "info_light": {
+        "name": "هفتگی لایت (100 جم)",
+        "price": "195.000T💸",
+        "type": "info"
+    },
+    "offer_1": {
+        "name": "آفر یک دلاری",
+        "price": "220.000T💸",
+        "type": "info"
+    },
+    "offer_2": {
+        "name": "آفر دو دلاری",
+        "price": "385.000T💸",
+        "type": "info"
+    },
+    "levelup": {
+        "name": "لول آپ پس (1250 Gem)",
+        "price": "980",
+        "type": "info"
+    },
+    "level_120": {
+        "name": "120 جم",
+        "price": "185",
+        "type": "info"
+    },
+    "level_200": {
+        "name": "200 جم",
+        "price": "230",
+        "type": "info"
+    },
+    "level_350": {
+        "name": "350 جم",
+        "price": "295",
+        "type": "info"
+    }
 }
 
 
@@ -110,8 +140,8 @@ async def start(bot: Robot, message: Message):
     await message.reply_keypad(
         "👋 سلام!\n\n"
         "به فروشگاه جم خوش اومدی 💎\n\n"
-        f"🛍 فروشگاه: {SHOP_USERNAME}\n"
-        f"🔗 {SHOP_LINK}\n\n"
+        "🛍 فروشگاه: `@TRIX__SHOP`\n"
+        "🔗 https://rubika.ir/TRIX__SHOP\n\n"
         "از منوی زیر انتخاب کن:",
         main_menu()
     )
