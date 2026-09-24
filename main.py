@@ -17,15 +17,11 @@ bot = Robot(token=BOT_TOKEN)
 
 pending_orders = {}
 
-# جلوگیری از پردازش دوباره یک آپدیت
 processed_updates = set()
 MAX_PROCESSED_UPDATES = 1000
 
 
 def is_duplicate_update(message):
-    """
-    هر پیام/آپدیت را فقط یک بار پردازش می‌کند.
-    """
     message_id = getattr(message, "message_id", None)
     chat_id = getattr(message, "chat_id", None)
 
@@ -39,7 +35,6 @@ def is_duplicate_update(message):
 
     processed_updates.add(update_key)
 
-    # جلوگیری از بزرگ شدن بیش از حد حافظه
     if len(processed_updates) > MAX_PROCESSED_UPDATES:
         processed_updates.clear()
         processed_updates.add(update_key)
@@ -119,51 +114,16 @@ def order_keypad(package_id):
 
 
 PACKAGES = {
-    "gem_110": {
-        "name": "110 Gem",
-        "price": "275✨",
-        "type": "id"
-    },
-    "gem_231": {
-        "name": "231 Gem",
-        "price": "518✨",
-        "type": "id"
-    },
-    "gem_583": {
-        "name": "583 Gem",
-        "price": "1375✨",
-        "type": "id"
-    },
-    "gem_1060": {
-        "name": "1060K Gem",
-        "price": "2450✨",
-        "type": "id"
-    },
-    "gem_2180": {
-        "name": "2180K Gem",
-        "price": "5,119✨",
-        "type": "id"
-    },
-    "gem_5000": {
-        "name": "5K Gem",
-        "price": "12.3 MiL🌟",
-        "type": "id"
-    },
-    "gem_11000": {
-        "name": "11K GEM",
-        "price": "23.890 MiL🌟",
-        "type": "id"
-    },
-    "monthly_id": {
-        "name": "Monthly",
-        "price": "2.690💸",
-        "type": "id"
-    },
-    "weekly_id": {
-        "name": "Weekly",
-        "price": "549💸",
-        "type": "id"
-    },
+    "gem_110": {"name": "110 Gem", "price": "275✨", "type": "id"},
+    "gem_231": {"name": "231 Gem", "price": "518✨", "type": "id"},
+    "gem_583": {"name": "583 Gem", "price": "1375✨", "type": "id"},
+    "gem_1060": {"name": "1060K Gem", "price": "2450✨", "type": "id"},
+    "gem_2180": {"name": "2180K Gem", "price": "5,119✨", "type": "id"},
+    "gem_5000": {"name": "5K Gem", "price": "12.3 MiL🌟", "type": "id"},
+    "gem_11000": {"name": "11K GEM", "price": "23.890 MiL🌟", "type": "id"},
+    "monthly_id": {"name": "Monthly", "price": "2.690💸", "type": "id"},
+    "weekly_id": {"name": "Weekly", "price": "549💸", "type": "id"},
+
     "info_weekly": {
         "name": "هفتگی (450 جم)",
         "price": "369.000T💸",
@@ -215,8 +175,11 @@ PACKAGES = {
 @bot.on_message(commands=["start"])
 async def start(bot: Robot, message: Message):
 
-    if is_duplicate_update(message):
-        return
+    print(
+        "START HANDLER:",
+        getattr(message, "message_id", None),
+        getattr(message, "chat_id", None)
+    )
 
     await message.reply_keypad(
         "🤖 ربات خرید جم تریکس شاپ خوش آمدید 🫠\n\n"
