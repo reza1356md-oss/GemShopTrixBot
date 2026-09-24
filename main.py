@@ -181,15 +181,7 @@ async def start(bot: Robot, message: Message):
         getattr(message, "chat_id", None)
     )
 
-    await message.reply_keypad(
-        "🤖 ربات خرید جم تریکس شاپ خوش آمدید 🫠\n\n"
-        "📢 چنل اصلی اگهی اکانت : 👇\n"
-        "@TRIX__SHOP\n\n"
-        "💬 گپ اصلی شاپ : 👇\n"
-        f"{GROUP_LINK}\n\n"
-        "از منوی زیر انتخاب کنید:",
-        main_menu()
-    )
+    await message.reply("TEST START")
 
 
 @bot.on_message(commands=["myid"])
