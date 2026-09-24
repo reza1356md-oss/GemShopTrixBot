@@ -107,6 +107,15 @@ async def gem_110(bot: Robot, message: Message):
         .row(
             builder.button(id="confirm_110", text="✅ تأیید سفارش")
         )
+        @bot.on_callback("confirm_110")
+async def confirm_110(bot: Robot, message: Message):
+    await message.reply(
+        "✅ سفارش شما تأیید شد.\n\n"
+        "💎 بسته: 110 Gem\n"
+        "💰 قیمت: 275✨\n\n"
+        "📦 وضعیت سفارش: در انتظار پرداخت\n\n"
+        "برای ادامه فرایند خرید، منتظر مرحله پرداخت باشید."
+    )
         .row(
             builder.button(id="cancel_order", text="❌ لغو")
         )
