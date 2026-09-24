@@ -4,8 +4,8 @@ from rubka.keypad import ChatKeypadBuilder
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-SHOP_USERNAME = "@TRIX__SHOP"
-SHOP_LINK = "https://rubika.ir/TRIX__SHOP"
+"🛍 فروشگاه: @TRIX\\_\\_SHOP\n"
+f"🔗 {SHOP_LINK}\n\n""
 
 # شماره کارت فعلی خودت را در همین خط نگه دار
 CARD_NUMBER = "5022291575298169"
