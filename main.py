@@ -101,7 +101,25 @@ async def back_page(bot: Robot, message: Message):
 
 @bot.on_callback("gem_110")
 async def gem_110(bot: Robot, message: Message):
-    await message.reply("🛒 110 Gem — 275✨ انتخاب شد.\n\nبرای تکمیل خرید با پشتیبانی در ارتباط باشید.")
+    builder = ChatKeypadBuilder()
+    keypad = (
+        builder
+        .row(
+            builder.button(id="confirm_110", text="✅ تأیید سفارش")
+        )
+        .row(
+            builder.button(id="cancel_order", text="❌ لغو")
+        )
+        .build()
+    )
+
+    await message.reply_keypad(
+        "🛍 سفارش شما\n\n"
+        "💎 بسته: 110 Gem\n"
+        "💰 قیمت: 275✨\n\n"
+        "آیا این بسته را تأیید می‌کنید؟",
+        keypad
+    )
 
 
 @bot.on_callback("gem_231")
