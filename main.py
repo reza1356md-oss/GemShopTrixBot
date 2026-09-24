@@ -221,10 +221,10 @@ async def start(bot: Robot, message: Message):
     )
 
     await bot.send_message(
-        message.chat_id,
-        "TEST DIRECT"
-    )
-
+    message.chat_id,
+    "TEST DIRECT",
+    disable_notification=True
+)
 
 @bot.on_message(commands=["myid"])
 async def my_id(bot: Robot, message: Message):
