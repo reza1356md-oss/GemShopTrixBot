@@ -12,17 +12,13 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 SHOP_USERNAME = "@TRIX__SHOP"
 
-# لینک چنل اصلی شاپ
 SHOP_LINK = "https://rubika.ir/TRIX__SHOP"
 
-# لینک گپ اصلی شاپ
 GROUP_LINK = "https://rubika.ir/joing/JHGBHFGG0PKMOKLLUWKSWHNFELZKLBUJ"
 
-# شماره کارت فعلی خودت را اینجا نگه دار
-CARD_NUMBER = "5022291575298169"
+CARD_NUMBER = "شماره کارت خودت"
 CARD_NAME = "رضا الله مددی آقبلاغی"
 
-# شناسه مدیر
 ADMIN_CHAT_ID = "b0KG4TR0BGyi09906a6a3aa2c8fc9c47"
 
 
@@ -662,7 +658,9 @@ async def all_callbacks(bot: Robot, message: Message):
         }
 
 
+        # =========================
         # سفارش با آیدی
+        # =========================
 
         if package["type"] == "id":
 
@@ -670,7 +668,7 @@ async def all_callbacks(bot: Robot, message: Message):
 
             await message.reply(
 
-                "✅ سفارش تأیید شد.\n\n"
+                "✅ سفارش شما با موفقیت تأیید شد.\n\n"
 
                 f"💎 بسته:\n"
                 f"{package['name']}\n\n"
@@ -684,7 +682,9 @@ async def all_callbacks(bot: Robot, message: Message):
             return
 
 
+        # =========================
         # سفارش با اطلاعات
+        # =========================
 
         if package["type"] == "info":
 
@@ -692,15 +692,28 @@ async def all_callbacks(bot: Robot, message: Message):
 
             await message.reply(
 
-                "✅ سفارش تأیید شد.\n\n"
+                "سفارش شما تایید شد ✅\n\n"
 
-                f"💎 بسته:\n"
+                "💎 نوع سفارش:\n"
                 f"{package['name']}\n\n"
 
-                f"💰 قیمت:\n"
+                "💰 قیمت:\n"
                 f"{package['price']}\n\n"
 
-                "📧 لطفاً Gmail مربوط به اکانت را ارسال کنید:"
+                "📧 جی‌میل:\n"
+                "[ ]\n\n"
+
+                "🗳️ رمز جیمیل:\n"
+                "[ ]\n\n"
+
+                "📸 شات 10 تایی پشتیبانی:\n"
+                "[ ]\n\n"
+
+                "👤 اسم اکانت:\n"
+                "[ ]\n\n"
+
+                "🆔 ایدی اکانت:\n"
+                "[ ]"
             )
 
             return
