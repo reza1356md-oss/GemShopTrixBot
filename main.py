@@ -281,5 +281,46 @@ async def normal_message(bot: Robot, message: Message):
 
         order["gmail"] = text
         order["step"] = "support_info"
+                await message.reply(
+            "✅ Gmail دریافت شد.\n\n"
+            "📸 لطفاً اطلاعات غیرحساس پشتیبانی/کد موردنیاز سفارش را ارسال کنید.\n\n"
+            "⚠️ رمز عبور حساب را ارسال نکنید."
+        )
+        return
+
+
+    if step == "support_info":
+
+        order["support_info"] = text
+        order["step"] = "account_id"
+
+        await message.reply(
+            "✅ اطلاعات پشتیبانی دریافت شد.\n\n"
+            "🆔 لطفاً آیدی اکانت را ارسال کنید:"
+        )
+        return
+
+
+async def send_payment_info(message, order):
+
+    order["step"] = "receipt"
+
+    package = order["package"]
+
+    await message.reply(
+        "✅ اطلاعات سفارش کامل شد.\n\n"
+        f"💎 محصول:\n{package['name']}\n\n"
+        f"💰 مبلغ:\n{package['price']}\n\n"
+        "💳 اطلاعات پرداخت\n"
+        "━━━━━━━━━━━━━━\n\n"
+        f"👤 نام صاحب کارت:\n{CARD_NAME}\n\n"
+        f"💳 شماره کارت:\n{CARD_NUMBER}\n\n"
+        "━━━━━━━━━━━━━━\n\n"
+        "💰 لطفاً مبلغ دقیق سفارش را واریز کنید.\n\n"
+        "🧾 سپس عکس رسید پرداخت را ارسال کنید."
+    )
+
+
+bot.run()
 
        
