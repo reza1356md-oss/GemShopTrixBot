@@ -1,48 +1,54 @@
 import os
-
 from rubka import Robot, Message
 from rubka.keypad import ChatKeypadBuilder
-
-
-# =========================
-# تنظیمات
-# =========================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 SHOP_USERNAME = "@TRIX__SHOP"
-
-# لینک چنل اصلی شاپ
 SHOP_LINK = "https://rubika.ir/TRIX__SHOP"
-
-# لینک گپ اصلی شاپ
 GROUP_LINK = "https://rubika.ir/joing/JHGBHFGG0PKMOKLLUWKSWHNFELZKLBUJ"
 
-# شماره کارت فعلی خودت را اینجا نگه دار
-CARD_NUMBER = "5022291575298169"
-
+CARD_NUMBER = "شماره کارت خودت"
 CARD_NAME = "رضا الله مددی آقبلاغی"
 
-# شناسه مدیر
 ADMIN_CHAT_ID = "b0KG4TR0BGyi09906a6a3aa2c8fc9c47"
-
-
-# =========================
-# ساخت ربات
-# =========================
 
 bot = Robot(token=BOT_TOKEN)
 
 pending_orders = {}
 
+# جلوگیری از پردازش دوباره یک آپدیت
+processed_updates = set()
+MAX_PROCESSED_UPDATES = 1000
 
-# =========================
-# منوی اصلی
-# =========================
+
+def is_duplicate_update(message):
+    """
+    هر پیام/آپدیت را فقط یک بار پردازش می‌کند.
+    """
+    message_id = getattr(message, "message_id", None)
+    chat_id = getattr(message, "chat_id", None)
+
+    if message_id is None:
+        return False
+
+    update_key = f"{chat_id}:{message_id}"
+
+    if update_key in processed_updates:
+        return True
+
+    processed_updates.add(update_key)
+
+    # جلوگیری از بزرگ شدن بیش از حد حافظه
+    if len(processed_updates) > MAX_PROCESSED_UPDATES:
+        processed_updates.clear()
+        processed_updates.add(update_key)
+
+    return False
+
 
 def main_menu():
     builder = ChatKeypadBuilder()
-
     return (
         builder
         .row(
@@ -56,13 +62,8 @@ def main_menu():
     )
 
 
-# =========================
-# صفحه اول محصولات
-# =========================
-
 def page1_keypad():
     builder = ChatKeypadBuilder()
-
     return (
         builder
         .row(builder.button(id="gem_110", text="💎 110 Gem — 275✨"))
@@ -79,13 +80,8 @@ def page1_keypad():
     )
 
 
-# =========================
-# صفحه دوم محصولات
-# =========================
-
 def page2_keypad():
     builder = ChatKeypadBuilder()
-
     return (
         builder
         .row(builder.button(id="info_weekly", text="📌 هفتگی 450 جم — 369.000T💸"))
@@ -102,13 +98,8 @@ def page2_keypad():
     )
 
 
-# =========================
-# دکمه تأیید / لغو سفارش
-# =========================
-
 def order_keypad(package_id):
     builder = ChatKeypadBuilder()
-
     return (
         builder
         .row(
@@ -127,114 +118,92 @@ def order_keypad(package_id):
     )
 
 
-# =========================
-# محصولات
-# =========================
-
 PACKAGES = {
-
     "gem_110": {
         "name": "110 Gem",
         "price": "275✨",
         "type": "id"
     },
-
     "gem_231": {
         "name": "231 Gem",
         "price": "518✨",
         "type": "id"
     },
-
     "gem_583": {
         "name": "583 Gem",
         "price": "1375✨",
         "type": "id"
     },
-
     "gem_1060": {
         "name": "1060K Gem",
         "price": "2450✨",
         "type": "id"
     },
-
     "gem_2180": {
         "name": "2180K Gem",
         "price": "5,119✨",
         "type": "id"
     },
-
     "gem_5000": {
         "name": "5K Gem",
         "price": "12.3 MiL🌟",
         "type": "id"
     },
-
     "gem_11000": {
         "name": "11K GEM",
         "price": "23.890 MiL🌟",
         "type": "id"
     },
-
     "monthly_id": {
         "name": "Monthly",
         "price": "2.690💸",
         "type": "id"
     },
-
     "weekly_id": {
         "name": "Weekly",
         "price": "549💸",
         "type": "id"
     },
-
     "info_weekly": {
         "name": "هفتگی (450 جم)",
         "price": "369.000T💸",
         "type": "info"
     },
-
     "info_monthly": {
         "name": "ماهانه (2.600 جم)",
         "price": "1.950.000T💸",
         "type": "info"
     },
-
     "info_light": {
         "name": "هفتگی لایت (100 جم)",
         "price": "195.000T💸",
         "type": "info"
     },
-
     "offer_1": {
         "name": "آفر یک دلاری",
         "price": "220.000T💸",
         "type": "info"
     },
-
     "offer_2": {
         "name": "آفر دو دلاری",
         "price": "385.000T💸",
         "type": "info"
     },
-
     "levelup": {
         "name": "لول آپ پس (1250 Gem)",
         "price": "980",
         "type": "info"
     },
-
     "level_120": {
         "name": "120 جم",
         "price": "185",
         "type": "info"
     },
-
     "level_200": {
         "name": "200 جم",
         "price": "230",
         "type": "info"
     },
-
     "level_350": {
         "name": "350 جم",
         "price": "295",
@@ -243,35 +212,28 @@ PACKAGES = {
 }
 
 
-# =========================
-# /start
-# =========================
-
 @bot.on_message(commands=["start"])
 async def start(bot: Robot, message: Message):
 
+    if is_duplicate_update(message):
+        return
+
     await message.reply_keypad(
-
         "🤖 ربات خرید جم تریکس شاپ خوش آمدید 🫠\n\n"
-
         "📢 چنل اصلی اگهی اکانت : 👇\n"
         "@TRIX__SHOP\n\n"
-
         "💬 گپ اصلی شاپ : 👇\n"
         f"{GROUP_LINK}\n\n"
-
         "از منوی زیر انتخاب کنید:",
-
         main_menu()
     )
 
 
-# =========================
-# /myid
-# =========================
-
 @bot.on_message(commands=["myid"])
 async def my_id(bot: Robot, message: Message):
+
+    if is_duplicate_update(message):
+        return
 
     await message.reply(
         "🆔 شناسه چت شما:\n\n"
@@ -279,12 +241,11 @@ async def my_id(bot: Robot, message: Message):
     )
 
 
-# =========================
-# پیام‌های معمولی
-# =========================
-
 @bot.on_message()
 async def normal_message(bot: Robot, message: Message):
+
+    if is_duplicate_update(message):
+        return
 
     text = (message.text or "").strip()
     chat_id = message.chat_id
@@ -295,17 +256,11 @@ async def normal_message(bot: Robot, message: Message):
     order = pending_orders[chat_id]
     step = order["step"]
 
-
-    # =========================
-    # دریافت رسید
-    # =========================
-
     if step == "receipt":
 
         file_data = getattr(message, "file", None)
 
         if file_data:
-
             order["receipt"] = file_data
             order["step"] = "waiting_confirmation"
 
@@ -326,12 +281,9 @@ async def normal_message(bot: Robot, message: Message):
                 "⏳ وضعیت سفارش: در انتظار تأیید\n\n"
                 "لطفاً منتظر بررسی پرداخت باشید."
             )
-
             return
 
-
         if text:
-
             order["receipt"] = text
             order["step"] = "waiting_confirmation"
 
@@ -342,23 +294,12 @@ async def normal_message(bot: Robot, message: Message):
                 "📦 سفارش شما ثبت شد.\n"
                 "⏳ وضعیت سفارش: در انتظار تأیید"
             )
-
             return
 
         return
 
-
-    # =========================
-    # پیام خالی
-    # =========================
-
     if not text:
         return
-
-
-    # =========================
-    # آیدی اکانت
-    # =========================
 
     if step == "account_id":
 
@@ -369,29 +310,14 @@ async def normal_message(bot: Robot, message: Message):
             "✅ آیدی اکانت دریافت شد.\n\n"
             "👤 لطفاً نام اکانت را ارسال کنید:"
         )
-
         return
-
-
-    # =========================
-    # نام اکانت
-    # =========================
 
     if step == "account_name":
 
         order["account_name"] = text
 
-        await send_payment_info(
-            message,
-            order
-        )
-
+        await send_payment_info(message, order)
         return
-
-
-    # =========================
-    # Gmail
-    # =========================
 
     if step == "gmail":
 
@@ -403,13 +329,7 @@ async def normal_message(bot: Robot, message: Message):
             "📸 لطفاً اطلاعات غیرحساس پشتیبانی/کد موردنیاز سفارش را ارسال کنید.\n\n"
             "⚠️ رمز عبور حساب را ارسال نکنید."
         )
-
         return
-
-
-    # =========================
-    # اطلاعات پشتیبانی
-    # =========================
 
     if step == "support_info":
 
@@ -420,13 +340,8 @@ async def normal_message(bot: Robot, message: Message):
             "✅ اطلاعات پشتیبانی دریافت شد.\n\n"
             "🆔 لطفاً آیدی اکانت را ارسال کنید:"
         )
-
         return
 
-
-# =========================
-# اطلاعات پرداخت
-# =========================
 
 async def send_payment_info(message, order):
 
@@ -435,35 +350,18 @@ async def send_payment_info(message, order):
     package = order["package"]
 
     await message.reply(
-
         "✅ اطلاعات سفارش کامل شد.\n\n"
-
-        f"💎 محصول:\n"
-        f"{package['name']}\n\n"
-
-        f"💰 مبلغ:\n"
-        f"{package['price']}\n\n"
-
+        f"💎 محصول:\n{package['name']}\n\n"
+        f"💰 مبلغ:\n{package['price']}\n\n"
         "💳 اطلاعات پرداخت\n"
         "━━━━━━━━━━━━━━\n\n"
-
-        f"👤 نام صاحب کارت:\n"
-        f"{CARD_NAME}\n\n"
-
-        f"💳 شماره کارت:\n"
-        f"{CARD_NUMBER}\n\n"
-
+        f"👤 نام صاحب کارت:\n{CARD_NAME}\n\n"
+        f"💳 شماره کارت:\n{CARD_NUMBER}\n\n"
         "━━━━━━━━━━━━━━\n\n"
-
         "💰 لطفاً مبلغ دقیق سفارش را واریز کنید.\n\n"
-
         "🧾 سپس عکس رسید پرداخت را ارسال کنید."
     )
 
-
-# =========================
-# اطلاع مدیر از سفارش
-# =========================
 
 async def notify_admin(bot, message, order):
 
@@ -471,17 +369,10 @@ async def notify_admin(bot, message, order):
 
     admin_text = (
         "🔔 سفارش جدید دریافت شد\n\n"
-
         "━━━━━━━━━━━━━━\n"
-
-        f"💎 محصول:\n"
-        f"{package['name']}\n\n"
-
-        f"💰 مبلغ:\n"
-        f"{package['price']}\n\n"
-
-        f"🆔 شناسه چت مشتری:\n"
-        f"{message.chat_id}\n\n"
+        f"💎 محصول:\n{package['name']}\n\n"
+        f"💰 مبلغ:\n{package['price']}\n\n"
+        f"🆔 شناسه چت مشتری:\n{message.chat_id}\n\n"
     )
 
     if order.get("account_id"):
@@ -515,41 +406,26 @@ async def notify_admin(bot, message, order):
     )
 
     try:
-
         await bot.send_message(
             ADMIN_CHAT_ID,
             admin_text
         )
-
     except Exception as e:
+        print("خطا در ارسال سفارش به مدیر:", e)
 
-        print(
-            "خطا در ارسال سفارش به مدیر:",
-            e
-        )
-
-
-# =========================
-# دکمه‌ها
-# =========================
 
 @bot.on_callback()
 async def all_callbacks(bot: Robot, message: Message):
 
+    if is_duplicate_update(message):
+        return
+
     try:
-
         button_id = message.aux_data.button_id
-
     except Exception:
-
         return
 
     chat_id = message.chat_id
-
-
-    # =========================
-    # خرید جم
-    # =========================
 
     if button_id == "buy":
 
@@ -558,13 +434,7 @@ async def all_callbacks(bot: Robot, message: Message):
             "بسته موردنظر را انتخاب کنید:",
             page1_keypad()
         )
-
         return
-
-
-    # =========================
-    # صفحه دوم
-    # =========================
 
     if button_id == "next_page":
 
@@ -573,13 +443,7 @@ async def all_callbacks(bot: Robot, message: Message):
             "بسته موردنظر را انتخاب کنید:",
             page2_keypad()
         )
-
         return
-
-
-    # =========================
-    # صفحه اول
-    # =========================
 
     if button_id == "back_page":
 
@@ -588,18 +452,11 @@ async def all_callbacks(bot: Robot, message: Message):
             "بسته موردنظر را انتخاب کنید:",
             page1_keypad()
         )
-
         return
-
-
-    # =========================
-    # لغو سفارش
-    # =========================
 
     if button_id == "cancel_order":
 
         if chat_id in pending_orders:
-
             del pending_orders[chat_id]
 
         await message.reply_keypad(
@@ -607,39 +464,20 @@ async def all_callbacks(bot: Robot, message: Message):
             "🛍 می‌توانید دوباره یک بسته انتخاب کنید:",
             page1_keypad()
         )
-
         return
-
-
-    # =========================
-    # انتخاب محصول
-    # =========================
 
     if button_id in PACKAGES:
 
         package = PACKAGES[button_id]
 
         await message.reply_keypad(
-
             "🛍 سفارش شما\n\n"
-
-            f"💎 بسته:\n"
-            f"{package['name']}\n\n"
-
-            f"💰 قیمت:\n"
-            f"{package['price']}\n\n"
-
+            f"💎 بسته:\n{package['name']}\n\n"
+            f"💰 قیمت:\n{package['price']}\n\n"
             "آیا این بسته را تأیید می‌کنید؟",
-
             order_keypad(button_id)
         )
-
         return
-
-
-    # =========================
-    # تأیید سفارش
-    # =========================
 
     if button_id.startswith("confirm_"):
 
@@ -655,64 +493,35 @@ async def all_callbacks(bot: Robot, message: Message):
         package = PACKAGES[package_id]
 
         pending_orders[chat_id] = {
-
             "package": package,
-
             "package_id": package_id,
-
             "step": None
         }
-
-
-        # سفارش با آیدی
 
         if package["type"] == "id":
 
             pending_orders[chat_id]["step"] = "account_id"
 
             await message.reply(
-
                 "✅ سفارش تأیید شد.\n\n"
-
-                f"💎 بسته:\n"
-                f"{package['name']}\n\n"
-
-                f"💰 قیمت:\n"
-                f"{package['price']}\n\n"
-
+                f"💎 بسته:\n{package['name']}\n\n"
+                f"💰 قیمت:\n{package['price']}\n\n"
                 "🆔 لطفاً آیدی اکانت خود را ارسال کنید:"
             )
-
             return
-
-
-        # سفارش با اطلاعات
 
         if package["type"] == "info":
 
             pending_orders[chat_id]["step"] = "gmail"
 
             await message.reply(
-
                 "✅ سفارش تأیید شد.\n\n"
-
-                f"💎 بسته:\n"
-                f"{package['name']}\n\n"
-
-                f"💰 قیمت:\n"
-                f"{package['price']}\n\n"
-
+                f"💎 بسته:\n{package['name']}\n\n"
+                f"💰 قیمت:\n{package['price']}\n\n"
                 "📧 لطفاً Gmail مربوط به اکانت را ارسال کنید:\n\n"
-
                 "⚠️ رمز عبور حساب را ارسال نکنید."
             )
-
             return
-
-
-    # =========================
-    # پیگیری سفارش
-    # =========================
 
     if button_id == "orders":
 
@@ -721,26 +530,15 @@ async def all_callbacks(bot: Robot, message: Message):
             order = pending_orders[chat_id]
 
             if order["step"] == "waiting_confirmation":
-
                 status = "⏳ در انتظار تأیید پرداخت"
-
             else:
-
                 status = "⏳ در حال تکمیل اطلاعات"
 
-
             await message.reply(
-
                 "📦 سفارش فعال شما\n\n"
-
-                f"💎 محصول:\n"
-                f"{order['package']['name']}\n\n"
-
-                f"💰 مبلغ:\n"
-                f"{order['package']['price']}\n\n"
-
-                f"📌 وضعیت:\n"
-                f"{status}"
+                f"💎 محصول:\n{order['package']['name']}\n\n"
+                f"💰 مبلغ:\n{order['package']['price']}\n\n"
+                f"📌 وضعیت:\n{status}"
             )
 
         else:
@@ -751,22 +549,12 @@ async def all_callbacks(bot: Robot, message: Message):
 
         return
 
-
-    # =========================
-    # پشتیبانی
-    # =========================
-
     if button_id == "support":
 
         await message.reply(
             "🆘 برای پشتیبانی با مدیر فروشگاه در ارتباط باشید."
         )
-
         return
 
-
-# =========================
-# اجرای ربات
-# =========================
 
 bot.run()
