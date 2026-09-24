@@ -164,6 +164,9 @@ async def my_id(bot: Robot, message: Message):
 
 @bot.on_message()
 async def normal_message(bot: Robot, message: Message):
+        if (message.text or "").strip() == "/myid":
+        await message.reply(f"🆔 شناسه چت شما:\n\n{message.chat_id}")
+        return
     chat_id = message.chat_id
 
     if chat_id not in pending_orders:
