@@ -8,7 +8,7 @@ SHOP_USERNAME = "@TRIX__SHOP"
 SHOP_LINK = "https://rubika.ir/TRIX__SHOP"
 
 # شماره کارت فعلی خودت را اینجا قرار بده
-CARD_NUMBER = "5022291575298169"
+CARD_NUMBER = "شماره کارت فعلی خودت"
 CARD_NAME = "رضا الله مددی آقبلاغی"
 
 bot = Robot(token=BOT_TOKEN)
@@ -70,8 +70,14 @@ def order_keypad(package_id):
     builder = ChatKeypadBuilder()
     return (
         builder
-        .row(builder.button(id=f"confirm_{package_id}", text="✅ تأیید سفارش"))
-        .row(builder.button(id="cancel_order", text="❌ لغو"))
+        .row(builder.button(
+            id=f"confirm_{package_id}",
+            text="✅ تأیید سفارش"
+        ))
+        .row(builder.button(
+            id="cancel_order",
+            text="❌ لغو"
+        ))
         .build()
     )
 
@@ -149,17 +155,48 @@ async def start(bot: Robot, message: Message):
 
 @bot.on_message()
 async def normal_message(bot: Robot, message: Message):
-    text = (message.text or "").strip()
     chat_id = message.chat_id
-
-    if not text or text == "/start":
-        return
 
     if chat_id not in pending_orders:
         return
 
     order = pending_orders[chat_id]
     step = order["step"]
+
+    text = (message.text or "").strip()
+
+    # دریافت رسید تصویری
+    if step == "receipt":
+        file_data = getattr(message, "file", None)
+
+        if file_data:
+            order["receipt"] = file_data
+            order["step"] = "waiting_confirmation"
+
+            await message.reply(
+                "🧾 رسید پرداخت دریافت شد. ✅\n\n"
+                "📦 سفارش شما با موفقیت ثبت شد.\n"
+                "⏳ وضعیت سفارش: در انتظار تأیید\n\n"
+                "لطفاً منتظر بررسی پرداخت باشید."
+            )
+            return
+
+        # اگر مشتری رسید را به صورت متن فرستاد
+        if text:
+            order["receipt"] = text
+            order["step"] = "waiting_confirmation"
+
+            await message.reply(
+                "🧾 اطلاعات رسید دریافت شد. ✅\n\n"
+                "📦 سفارش شما ثبت شد.\n"
+                "⏳ وضعیت سفارش: در انتظار تأیید"
+            )
+            return
+
+        return
+
+    if not text:
+        return
 
     if step == "account_id":
         order["account_id"] = text
@@ -197,20 +234,10 @@ async def normal_message(bot: Robot, message: Message):
         )
         return
 
-    if step == "receipt":
-        order["receipt"] = text
-        order["step"] = "completed"
-
-        await message.reply(
-            "✅ رسید دریافت شد.\n\n"
-            "📦 سفارش شما ثبت شد.\n"
-            "⏳ وضعیت سفارش: در انتظار بررسی"
-        )
-        return
-
 
 async def send_payment_info(message, order):
     order["step"] = "receipt"
+
     package = order["package"]
 
     await message.reply(
@@ -223,7 +250,7 @@ async def send_payment_info(message, order):
         f"💳 شماره کارت:\n{CARD_NUMBER}\n\n"
         "━━━━━━━━━━━━━━\n\n"
         "💰 لطفاً مبلغ دقیق سفارش را واریز کنید.\n\n"
-        "🧾 سپس رسید پرداخت را ارسال کنید."
+        "🧾 سپس عکس رسید پرداخت را ارسال کنید."
     )
 
 
@@ -324,11 +351,16 @@ async def all_callbacks(bot: Robot, message: Message):
         if chat_id in pending_orders:
             order = pending_orders[chat_id]
 
+            if order["step"] == "waiting_confirmation":
+                status = "⏳ در انتظار تأیید پرداخت"
+            else:
+                status = "⏳ در حال تکمیل اطلاعات"
+
             await message.reply(
                 "📦 سفارش فعال شما\n\n"
                 f"💎 محصول: {order['package']['name']}\n"
                 f"💰 مبلغ: {order['package']['price']}\n\n"
-                "⏳ وضعیت: در حال تکمیل اطلاعات/بررسی"
+                f"📌 وضعیت: {status}"
             )
         else:
             await message.reply(
