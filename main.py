@@ -8,8 +8,8 @@ SHOP_USERNAME = os.getenv("SHOP_USERNAME", "@TRIX__SHOP")
 SHOP_LINK = os.getenv("SHOP_LINK", "https://rubika.ir/TRIX__SHOP")
 
 # این دو مقدار را در Railway > Variables گذاشته باش
-CARD_NUMBER = os.getenv("CARD_NUMBER", "شماره کارت تنظیم نشده")
-CARD_NAME = os.getenv("CARD_NAME", "نام صاحب کارت تنظیم نشده")
+CARD_NUMBER = os.getenv("CARD_NUMBER", "5022291575298169")
+CARD_NAME = os.getenv("CARD_NAME", "رضا الله مددی آقبلاغی")
 
 bot = Robot(token=BOT_TOKEN)
 
