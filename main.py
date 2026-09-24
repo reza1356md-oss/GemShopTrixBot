@@ -106,8 +106,26 @@ async def gem_2180(bot: Robot, message: Message):
 
 @bot.on_callback("next_page")
 async def next_page(bot: Robot, message: Message):
-    await message.reply(
-        "⏳ صفحه دوم به‌زودی اضافه می‌شود."
+    builder = ChatKeypadBuilder()
+    keypad = (
+        builder
+        .row(builder.button(id="gem_5000", text="🛒 خرید 5K جم"))
+        .row(builder.button(id="gem_11000", text="🛒 خرید 11K جم"))
+        .row(builder.button(id="monthly", text="🛒 خرید ماهانه"))
+        .row(builder.button(id="weekly", text="🛒 خرید هفتگی"))
+        .row(builder.button(id="levelup", text="🛒 لول آپ"))
+        .build()
+    )
+
+    await message.reply_keypad(
+        "💎 لیست جم - صفحه 2 از 2\n\n"
+        "💎 5K Gem — 12.3 MiL🌟\n"
+        "💎 11K Gem — 23.890 MiL🌟\n"
+        "📆 Monthly — 2.690 💸\n"
+        "🗓 Weekly — 549 💸\n"
+        "⚠️ پک کامل لول آپ — 948 تومان\n\n"
+        "برای خرید، بسته موردنظر را انتخاب کن:",
+        keypad
     )
 
 
