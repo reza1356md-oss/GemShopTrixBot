@@ -206,7 +206,13 @@ async def level_200(bot: Robot, message: Message):
 async def level_350(bot: Robot, message: Message):
     await message.reply("🛒 350 جم — 295 انتخاب شد.\n\nبرای تکمیل خرید با پشتیبانی در ارتباط باشید.")
 
-
+@bot.on_callback("cancel_order")
+async def cancel_order(bot: Robot, message: Message):
+    await message.reply_keypad(
+        "❌ سفارش لغو شد.\n\n"
+        "🛍 می‌توانید دوباره یک بسته انتخاب کنید:",
+        page1_keypad()
+    )
 @bot.on_callback("orders")
 async def orders(bot: Robot, message: Message):
     await message.reply("📦 سیستم پیگیری سفارش به‌زودی فعال می‌شود.")
