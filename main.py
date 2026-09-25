@@ -495,10 +495,6 @@ async def normal_message(bot: Robot, message: Message):
             order["step"] = "rejected"
             order["reject_reason"] = text
 
-            # ---------------------------------------------
-            # ارسال نتیجه رد به مشتری
-            # ---------------------------------------------
-
             try:
 
                 await bot.send_message(
@@ -557,6 +553,7 @@ async def normal_message(bot: Robot, message: Message):
         if file_data:
 
             order["receipt"] = file_data
+            order["receipt_message_id"] = message.message_id
             order["step"] = "waiting_confirmation"
             order["status"] = "waiting_confirmation"
 
@@ -735,7 +732,14 @@ async def support_image_handler(
     if not file_data:
         return
 
+    # نگهداری خود فایل برای تشخیص دریافت
     order["support_image"] = file_data
+
+    # مهم:
+    # message_id تصویر ذخیره می‌شود تا همان تصویر
+    # مستقیماً برای مدیر فوروارد شود.
+    order["support_image_message_id"] = message.message_id
+
     order["step"] = "account_name_info"
 
     await message.reply(
@@ -846,24 +850,14 @@ async def notify_admin(
         f"{message.chat_id}\n\n"
     )
 
-    if order.get("account_id"):
-
-        admin_text += (
-            "🎮 آیدی اکانت:\n"
-            f"{order['account_id']}\n\n"
-        )
-
-    if order.get("account_name"):
-
-        admin_text += (
-            "👤 نام اکانت:\n"
-            f"{order['account_name']}\n\n"
-        )
+    # =====================================================
+    # اطلاعات تکمیل‌شده سفارش جم اطلاعات
+    # =====================================================
 
     if order.get("gmail"):
 
         admin_text += (
-            "📧 Gmail:\n"
+            "📧 Gmail مشتری:\n"
             f"{order['gmail']}\n\n"
         )
 
@@ -874,12 +868,43 @@ async def notify_admin(
             f"{order['support_info']}\n\n"
         )
 
-    if order.get("support_image"):
+    if order.get("account_name"):
 
         admin_text += (
-            "📸 شات پشتیبانی:\n"
-            "دریافت شد ✅\n\n"
+            "👤 اسم اکانت مشتری:\n"
+            f"{order['account_name']}\n\n"
         )
+
+    if order.get("account_id"):
+
+        admin_text += (
+            "🆔 آیدی اکانت مشتری:\n"
+            f"{order['account_id']}\n\n"
+        )
+
+    # =====================================================
+    # رمز جیمیل عمداً دریافت یا ارسال نمی‌شود
+    # =====================================================
+
+    admin_text += (
+        "🔐 رمز جیمیل:\n"
+        "دریافت نمی‌شود 🔒\n\n"
+    )
+
+    # =====================================================
+    # وضعیت شات پشتیبانی
+    # =====================================================
+
+    if order.get("support_image_message_id"):
+
+        admin_text += (
+            "📸 شات 10 تایی پشتیبانی:\n"
+            "تصویر دریافت شد و در ادامه فوروارد می‌شود ✅\n\n"
+        )
+
+    # =====================================================
+    # رسید پرداخت
+    # =====================================================
 
     admin_text += (
         "🧾 رسید پرداخت:\n"
@@ -895,6 +920,10 @@ async def notify_admin(
 
     try:
 
+        # -------------------------------------------------
+        # ارسال متن کامل اطلاعات سفارش به مدیر
+        # -------------------------------------------------
+
         await bot.send_message(
             ADMIN_CHAT_ID,
             admin_text,
@@ -903,6 +932,33 @@ async def notify_admin(
             ),
             chat_keypad_type="New"
         )
+
+        # -------------------------------------------------
+        # ارسال مستقیم عکس شات 10 تایی پشتیبانی
+        # -------------------------------------------------
+
+        if order.get("support_image_message_id"):
+
+            try:
+
+                await bot.forward_message(
+                    message.chat_id,
+                    order["support_image_message_id"],
+                    ADMIN_CHAT_ID
+                )
+
+                await bot.send_message(
+                    ADMIN_CHAT_ID,
+                    "📸 شات 10 تایی کدهای پشتیبانی سفارش بالا است.\n\n"
+                    f"🎫 کد پیگیری: {tracking_code}"
+                )
+
+            except Exception as image_error:
+
+                print(
+                    "خطا در فوروارد شات پشتیبانی:",
+                    image_error
+                )
 
     except Exception as e:
 
@@ -1019,6 +1075,7 @@ async def all_callbacks(
             )
 
             if old_tracking:
+
                 orders_by_tracking.pop(
                     old_tracking,
                     None
@@ -1053,7 +1110,7 @@ async def all_callbacks(
 
             "━━━━━━━━━━━━━━\n\n"
 
-            "آیا این بسته را تأیید می‌کنید؟",
+            "آیا این بسته را تأیید می‌کنید?",
 
             order_keypad(button_id)
         )
@@ -1141,6 +1198,7 @@ async def all_callbacks(
 
                 "🆔 ایدی اکانت:\n"
                 "[ ]"
+                همه ی موارد خواسته شده را یکجا و در یک پیام همراه شات کد پشتیبانی ارسال کنید♂️
             )
 
             return
