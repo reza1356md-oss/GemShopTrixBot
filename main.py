@@ -11,7 +11,9 @@ SHOP_USERNAME = "@TRIX__SHOP"
 SHOP_LINK = "https://rubika.ir/TRIX__SHOP"
 GROUP_LINK = "https://rubika.ir/joing/JHGBHFGG0PKMOKLLUWKSWHNFELZKLBUJ"
 
+# شماره کارت خودت را اینجا قرار بده
 CARD_NUMBER = "5022291575298169"
+
 CARD_NAME = "رضا الله مددی آقبلاغی"
 
 ADMIN_CHAT_ID = "b0KG4TR0BGyi09906a6a3aa2c8fc9c47"
@@ -19,10 +21,21 @@ ADMIN_CHAT_ID = "b0KG4TR0BGyi09906a6a3aa2c8fc9c47"
 
 bot = Robot(token=BOT_TOKEN)
 
+
+# =========================================================
+# اطلاعات سفارش‌ها
+# =========================================================
+
 pending_orders = {}
 
-# کدهای پیگیری قبلی برای جلوگیری از تکراری شدن
+# کدهای پیگیری استفاده‌شده
 used_tracking_codes = set()
+
+# سفارش‌ها بر اساس کد پیگیری
+orders_by_tracking = {}
+
+# وضعیت انتظار از مدیر برای رد سفارش
+admin_reject_waiting = {}
 
 
 # =========================================================
@@ -30,11 +43,15 @@ used_tracking_codes = set()
 # =========================================================
 
 def generate_tracking_code():
+
     while True:
+
         code = f"#{random.randint(100000, 999999)}"
 
         if code not in used_tracking_codes:
+
             used_tracking_codes.add(code)
+
             return code
 
 
@@ -43,6 +60,7 @@ def generate_tracking_code():
 # =========================================================
 
 def main_menu():
+
     builder = ChatKeypadBuilder()
 
     return (
@@ -72,6 +90,7 @@ def main_menu():
 # =========================================================
 
 def page1_keypad():
+
     builder = ChatKeypadBuilder()
 
     return (
@@ -145,6 +164,7 @@ def page1_keypad():
 # =========================================================
 
 def page2_keypad():
+
     builder = ChatKeypadBuilder()
 
     return (
@@ -214,10 +234,11 @@ def page2_keypad():
 
 
 # =========================================================
-# دکمه تأیید و لغو
+# دکمه تأیید و لغو سفارش مشتری
 # =========================================================
 
 def order_keypad(package_id):
+
     builder = ChatKeypadBuilder()
 
     return (
@@ -232,6 +253,50 @@ def order_keypad(package_id):
             builder.button(
                 id="cancel_order",
                 text="❌ لغو"
+            )
+        )
+        .build()
+    )
+
+
+# =========================================================
+# دکمه‌های مدیریت رسید
+# =========================================================
+
+def admin_receipt_keypad(tracking_code):
+
+    builder = ChatKeypadBuilder()
+
+    return (
+        builder
+        .row(
+            builder.button(
+                id=f"admin_approve_{tracking_code}",
+                text="✅ تأیید رسید"
+            ),
+            builder.button(
+                id=f"admin_reject_{tracking_code}",
+                text="❌ رد رسید"
+            )
+        )
+        .build()
+    )
+
+
+# =========================================================
+# دکمه انجام سفارش
+# =========================================================
+
+def admin_done_keypad(tracking_code):
+
+    builder = ChatKeypadBuilder()
+
+    return (
+        builder
+        .row(
+            builder.button(
+                id=f"admin_done_{tracking_code}",
+                text="✅ انجام شد"
             )
         )
         .build()
@@ -355,7 +420,7 @@ PACKAGES = {
 
 
 # =========================================================
-# شروع
+# /start
 # =========================================================
 
 @bot.on_message(commands=["start"])
@@ -378,7 +443,7 @@ async def start(bot: Robot, message: Message):
 
 
 # =========================================================
-# شناسه کاربر
+# /myid
 # =========================================================
 
 @bot.on_message(commands=["myid"])
@@ -392,7 +457,7 @@ async def my_id(bot: Robot, message: Message):
 
 
 # =========================================================
-# پیام‌های متنی
+# پیام‌های معمولی
 # =========================================================
 
 @bot.on_message()
@@ -402,8 +467,88 @@ async def normal_message(bot: Robot, message: Message):
 
     chat_id = message.chat_id
 
+
+    # =====================================================
+    # پیام مالک برای توضیح رد سفارش
+    # =====================================================
+
+    if chat_id == ADMIN_CHAT_ID:
+
+        if chat_id in admin_reject_waiting:
+
+            tracking_code = admin_reject_waiting[chat_id]
+
+            if not text:
+                return
+
+            if tracking_code not in orders_by_tracking:
+
+                del admin_reject_waiting[chat_id]
+
+                await message.reply(
+                    "❌ این سفارش دیگر پیدا نشد."
+                )
+
+                return
+
+
+            order = orders_by_tracking[tracking_code]
+
+            customer_chat_id = order["chat_id"]
+
+
+            # ثبت توضیح رد
+            order["reject_reason"] = text
+
+            order["status"] = "rejected"
+
+            order["step"] = "rejected"
+
+
+            # حذف حالت انتظار مدیر
+            del admin_reject_waiting[chat_id]
+
+
+            # ارسال توضیح برای مشتری
+            await bot.send_message(
+
+                customer_chat_id,
+
+                "❌ رسید پرداخت سفارش شما تأیید نشد.\n\n"
+
+                f"🎫 کد پیگیری:\n"
+                f"{tracking_code}\n\n"
+
+                "📝 توضیحات مدیریت:\n"
+                f"{text}\n\n"
+
+                "لطفاً پس از بررسی توضیحات، "
+                "در صورت نیاز رسید صحیح را ارسال کنید."
+            )
+
+
+            await message.reply(
+
+                "❌ رسید سفارش رد شد و توضیحات "
+                "برای مشتری ارسال شد.\n\n"
+
+                f"🎫 کد پیگیری:\n"
+                f"{tracking_code}"
+            )
+
+            return
+
+
+        return
+
+
+    # =====================================================
+    # بررسی وجود سفارش مشتری
+    # =====================================================
+
     if chat_id not in pending_orders:
         return
+
 
     order = pending_orders[chat_id]
 
@@ -411,7 +556,7 @@ async def normal_message(bot: Robot, message: Message):
 
 
     # =====================================================
-    # رسید پرداخت
+    # دریافت رسید
     # =====================================================
 
     if step == "receipt":
@@ -430,11 +575,14 @@ async def normal_message(bot: Robot, message: Message):
 
             order["step"] = "waiting_confirmation"
 
+            order["status"] = "waiting_confirmation"
+
             await notify_admin(
                 bot,
                 message,
                 order
             )
+
 
             try:
 
@@ -467,11 +615,14 @@ async def normal_message(bot: Robot, message: Message):
 
             order["step"] = "waiting_confirmation"
 
+            order["status"] = "waiting_confirmation"
+
             await notify_admin(
                 bot,
                 message,
                 order
             )
+
 
             await send_receipt_received_message(
                 message,
@@ -479,6 +630,7 @@ async def normal_message(bot: Robot, message: Message):
             )
 
             return
+
 
         return
 
@@ -488,7 +640,7 @@ async def normal_message(bot: Robot, message: Message):
 
 
     # =====================================================
-    # جم با آیدی - دریافت آیدی
+    # جم با آیدی - آیدی
     # =====================================================
 
     if step == "account_id":
@@ -506,7 +658,7 @@ async def normal_message(bot: Robot, message: Message):
 
 
     # =====================================================
-    # جم با آیدی - دریافت اسم
+    # جم با آیدی - اسم
     # =====================================================
 
     if step == "account_name":
@@ -578,7 +730,7 @@ async def normal_message(bot: Robot, message: Message):
 
 
     # =====================================================
-    # جم اطلاعات - آیدی اکانت
+    # جم اطلاعات - آیدی
     # =====================================================
 
     if step == "account_id_info":
@@ -605,6 +757,9 @@ async def support_image_handler(
 
     chat_id = message.chat_id
 
+    if chat_id == ADMIN_CHAT_ID:
+        return
+
     if chat_id not in pending_orders:
         return
 
@@ -622,9 +777,11 @@ async def support_image_handler(
     if not file_data:
         return
 
+
     order["support_image"] = file_data
 
     order["step"] = "account_name_info"
+
 
     await message.reply(
 
@@ -635,7 +792,7 @@ async def support_image_handler(
 
 
 # =========================================================
-# پیام دریافت رسید + کد پیگیری
+# پیام دریافت رسید
 # =========================================================
 
 async def send_receipt_received_message(
@@ -644,6 +801,7 @@ async def send_receipt_received_message(
 ):
 
     tracking_code = order["tracking_code"]
+
 
     await message.reply(
 
@@ -668,7 +826,7 @@ async def send_receipt_received_message(
 
 
 # =========================================================
-# ارسال اطلاعات کارت
+# اطلاعات کارت
 # =========================================================
 
 async def send_payment_info(
@@ -678,7 +836,10 @@ async def send_payment_info(
 
     order["step"] = "receipt"
 
+    order["status"] = "waiting_receipt"
+
     package = order["package"]
+
 
     await message.reply(
 
@@ -708,7 +869,7 @@ async def send_payment_info(
 
 
 # =========================================================
-# اطلاع سفارش به مدیر
+# ارسال سفارش به مدیر
 # =========================================================
 
 async def notify_admin(
@@ -720,6 +881,7 @@ async def notify_admin(
     package = order["package"]
 
     tracking_code = order["tracking_code"]
+
 
     admin_text = (
 
@@ -792,17 +954,25 @@ async def notify_admin(
         "دریافت شد ✅\n\n"
 
         "⏳ وضعیت:\n"
-        "در انتظار بررسی رسید\n\n"
+        "در انتظار تأیید رسید\n\n"
 
-        "━━━━━━━━━━━━━━"
+        "━━━━━━━━━━━━━━\n\n"
+
+        "لطفاً رسید را بررسی کنید."
     )
 
 
     try:
 
         await bot.send_message(
+
             ADMIN_CHAT_ID,
-            admin_text
+
+            admin_text,
+
+            keypad=admin_receipt_keypad(
+                tracking_code
+            )
         )
 
     except Exception as e:
@@ -837,6 +1007,270 @@ async def all_callbacks(
 
 
     chat_id = message.chat_id
+
+
+    # =====================================================
+    # جلوگیری از دسترسی افراد غیرمدیر
+    # =====================================================
+
+    if (
+        button_id.startswith("admin_")
+        and chat_id != ADMIN_CHAT_ID
+    ):
+
+        return
+
+
+    # =====================================================
+    # تأیید رسید توسط مدیر
+    # =====================================================
+
+    if button_id.startswith("admin_approve_"):
+
+        tracking_code = button_id.replace(
+            "admin_approve_",
+            "",
+            1
+        )
+
+
+        if tracking_code not in orders_by_tracking:
+
+            await message.reply(
+                "❌ سفارش پیدا نشد."
+            )
+
+            return
+
+
+        order = orders_by_tracking[
+            tracking_code
+        ]
+
+
+        # اگر قبلاً رسید رد شده
+        if order.get("status") == "rejected":
+
+            await message.reply(
+                "❌ این سفارش قبلاً رد شده است."
+            )
+
+            return
+
+
+        # تغییر وضعیت
+        order["status"] = "processing"
+
+        order["step"] = "processing"
+
+
+        customer_chat_id = order["chat_id"]
+
+
+        # ارسال وضعیت جدید به مشتری
+        await bot.send_message(
+
+            customer_chat_id,
+
+            "✅ رسید پرداخت شما تأیید شد.\n\n"
+
+            "🎫 کد پیگیری:\n"
+            f"{tracking_code}\n\n"
+
+            "🔄 وضعیت سفارش شما:\n"
+            "در حال انجام سفارش\n\n"
+
+            "⏳ لطفاً تا تکمیل سفارش منتظر بمانید."
+        )
+
+
+        # پیام مدیر
+        await message.reply(
+
+            "✅ رسید پرداخت تأیید شد.\n\n"
+
+            f"🎫 کد پیگیری:\n"
+            f"{tracking_code}\n\n"
+
+            "🔄 وضعیت سفارش:\n"
+            "در حال انجام سفارش\n\n"
+
+            "پس از انجام سفارش، دکمه زیر را بزنید."
+        )
+
+
+        # دکمه انجام شد
+        await message.reply_keypad(
+
+            "🛠 سفارش آماده انجام است.\n\n"
+
+            f"💎 بسته:\n"
+            f"{order['package']['name']}\n\n"
+
+            f"💰 قیمت:\n"
+            f"{order['package']['price']}",
+
+            admin_done_keypad(
+                tracking_code
+            )
+        )
+
+        return
+
+
+    # =====================================================
+    # رد رسید توسط مدیر
+    # =====================================================
+
+    if button_id.startswith("admin_reject_"):
+
+        tracking_code = button_id.replace(
+            "admin_reject_",
+            "",
+            1
+        )
+
+
+        if tracking_code not in orders_by_tracking:
+
+            await message.reply(
+                "❌ سفارش پیدا نشد."
+            )
+
+            return
+
+
+        order = orders_by_tracking[
+            tracking_code
+        ]
+
+
+        if order.get("status") == "processing":
+
+            await message.reply(
+                "❌ این سفارش قبلاً تأیید شده است."
+            )
+
+            return
+
+
+        if order.get("status") == "completed":
+
+            await message.reply(
+                "❌ این سفارش قبلاً تکمیل شده است."
+            )
+
+            return
+
+
+        # منتظر توضیح مدیر
+        admin_reject_waiting[
+            ADMIN_CHAT_ID
+        ] = tracking_code
+
+
+        await message.reply(
+
+            "❌ رد رسید انتخاب شد.\n\n"
+
+            f"🎫 کد پیگیری:\n"
+            f"{tracking_code}\n\n"
+
+            "📝 لطفاً دلیل رد شدن رسید را "
+            "در پیام بعدی ارسال کنید.\n\n"
+
+            "⚠️ متن بعدی شما مستقیماً برای مشتری ارسال خواهد شد."
+        )
+
+        return
+
+
+    # =====================================================
+    # انجام شد توسط مدیر
+    # =====================================================
+
+    if button_id.startswith("admin_done_"):
+
+        tracking_code = button_id.replace(
+            "admin_done_",
+            "",
+            1
+        )
+
+
+        if tracking_code not in orders_by_tracking:
+
+            await message.reply(
+                "❌ سفارش پیدا نشد."
+            )
+
+            return
+
+
+        order = orders_by_tracking[
+            tracking_code
+        ]
+
+
+        if order.get("status") != "processing":
+
+            await message.reply(
+
+                "❌ این سفارش هنوز در وضعیت "
+                "در حال انجام نیست."
+            )
+
+            return
+
+
+        package = order["package"]
+
+        customer_chat_id = order["chat_id"]
+
+
+        # تغییر وضعیت
+        order["status"] = "completed"
+
+        order["step"] = "completed"
+
+
+        # پیام نهایی مشتری
+        await bot.send_message(
+
+            customer_chat_id,
+
+            "🎉 سفارش شما تکمیل شد ✅\n\n"
+
+            f"💎 بسته:\n"
+            f"{package['name']}\n\n"
+
+            f"💰 قیمت:\n"
+            f"{package['price']}\n\n"
+
+            f"🎫 کد پیگیری:\n"
+            f"{tracking_code}\n\n"
+
+            "━━━━━━━━━━━━━━\n\n"
+
+            "✅ سفارش شما با موفقیت انجام شد.\n\n"
+
+            "ممنونم بابت انتخابتون\n"
+            "𝐓𝐑𝐈𝐗 𝐒𝐇𝐎𝐏 ❤️"
+        )
+
+
+        await message.reply(
+
+            "🎉 سفارش با موفقیت تکمیل شد.\n\n"
+
+            f"🎫 کد پیگیری:\n"
+            f"{tracking_code}\n\n"
+
+            "📦 وضعیت سفارش:\n"
+            "تکمیل شده ✅"
+        )
+
+        return
 
 
     # =====================================================
@@ -901,6 +1335,20 @@ async def all_callbacks(
 
         if chat_id in pending_orders:
 
+            order = pending_orders[chat_id]
+
+            tracking_code = order.get(
+                "tracking_code"
+            )
+
+            if tracking_code:
+
+                orders_by_tracking.pop(
+                    tracking_code,
+                    None
+                )
+
+
             del pending_orders[chat_id]
 
 
@@ -948,7 +1396,7 @@ async def all_callbacks(
 
 
     # =====================================================
-    # تأیید سفارش
+    # تأیید سفارش مشتری
     # =====================================================
 
     if button_id.startswith("confirm_"):
@@ -968,11 +1416,11 @@ async def all_callbacks(
         package = PACKAGES[package_id]
 
 
-        # ساخت کد پیگیری جدید برای سفارش
+        # ساخت کد پیگیری
         tracking_code = generate_tracking_code()
 
 
-        pending_orders[chat_id] = {
+        order = {
 
             "package": package,
 
@@ -980,8 +1428,19 @@ async def all_callbacks(
 
             "tracking_code": tracking_code,
 
-            "step": None
+            "chat_id": chat_id,
+
+            "step": None,
+
+            "status": "collecting_info"
         }
+
+
+        pending_orders[chat_id] = order
+
+        orders_by_tracking[
+            tracking_code
+        ] = order
 
 
         # =================================================
@@ -990,9 +1449,9 @@ async def all_callbacks(
 
         if package["type"] == "id":
 
-            pending_orders[chat_id]["step"] = (
-                "account_id"
-            )
+            pending_orders[
+                chat_id
+            ]["step"] = "account_id"
 
 
             await message.reply(
@@ -1009,9 +1468,9 @@ async def all_callbacks(
 
         if package["type"] == "info":
 
-            pending_orders[chat_id]["step"] = (
-                "gmail"
-            )
+            pending_orders[
+                chat_id
+            ]["step"] = "gmail"
 
 
             await message.reply(
@@ -1054,10 +1513,34 @@ async def all_callbacks(
             order = pending_orders[chat_id]
 
 
-            if order["step"] == "waiting_confirmation":
+            status_value = order.get(
+                "status",
+                ""
+            )
+
+
+            if status_value == "waiting_confirmation":
 
                 status = (
                     "⏳ در انتظار تأیید رسید"
+                )
+
+            elif status_value == "processing":
+
+                status = (
+                    "🔄 در حال انجام سفارش"
+                )
+
+            elif status_value == "completed":
+
+                status = (
+                    "✅ تکمیل شده"
+                )
+
+            elif status_value == "rejected":
+
+                status = (
+                    "❌ رسید رد شده"
                 )
 
             else:
