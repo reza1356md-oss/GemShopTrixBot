@@ -155,7 +155,7 @@ def page2_keypad():
         .row(
             builder.button(
                 id="info_weekly",
-                text="📌 هفتگی 450 جم — 369.000T💸"
+                text="📌 هفتگی 450 جم — 399.000T💸"
             )
         )
         .row(
