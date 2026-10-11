@@ -12,7 +12,7 @@ SHOP_LINK = "https://rubika.ir/TRIX__SHOP"
 GROUP_LINK = "https://rubika.ir/joing/JHGBHFGG0PKMOKLLUWKSWHNFELZKLBUJ"
 
 # شماره کارت خودت را اینجا قرار بده
-CARD_NUMBER = "5022291575298169"
+CARD_NUMBER = "شماره کارت خودت"
 CARD_NAME = "رضا الله مددی آقبلاغی"
 
 ADMIN_CHAT_ID = "b0KG4TR0BGyi09906a6a3aa2c8fc9c47"
@@ -167,7 +167,7 @@ def page1_keypad():
 def page2_keypad():
     builder = ChatKeypadBuilder()
 
-return (
+    return (
         builder
         .row(
             builder.button(
@@ -353,7 +353,7 @@ PACKAGES = {
         "type": "id"
     },
 
-"weekly_id": {
+    "weekly_id": {
         "name": "Weekly",
         "price": "569💸",
         "type": "id"
@@ -531,7 +531,7 @@ async def normal_message(bot: Robot, message: Message):
     # اگر سفارش فعال نیست
     # =====================================================
 
-if chat_id not in pending_orders:
+    if chat_id not in pending_orders:
         return
 
     order = pending_orders[chat_id]
@@ -897,7 +897,7 @@ async def notify_admin(
 
     if order.get("support_image_message_id"):
 
-admin_text += (
+        admin_text += (
             "📸 شات 10 تایی پشتیبانی:\n"
             "تصویر دریافت شد و در ادامه فوروارد می‌شود ✅\n\n"
         )
@@ -1066,7 +1066,7 @@ async def all_callbacks(
 
     if button_id == "cancel_order":
 
-if chat_id in pending_orders:
+        if chat_id in pending_orders:
 
             old_order = pending_orders.pop(chat_id)
 
@@ -1197,7 +1197,7 @@ if chat_id in pending_orders:
                 "[ ]\n\n"
 
                 "🆔 ایدی اکانت:\n"
-                "[ ]"   
+                "[ ]"
             )
 
             return
@@ -1242,7 +1242,7 @@ if chat_id in pending_orders:
 
         package = order["package"]
 
-# -------------------------------------------------
+        # -------------------------------------------------
         # پیام تأیید برای مشتری
         # -------------------------------------------------
 
@@ -1408,7 +1408,7 @@ if chat_id in pending_orders:
 
         package = order["package"]
 
-# -------------------------------------------------
+        # -------------------------------------------------
         # پیام نهایی برای مشتری
         # -------------------------------------------------
 
