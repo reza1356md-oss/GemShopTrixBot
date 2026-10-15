@@ -21,6 +21,7 @@ SHOP_USERNAME = "@TRIX__SHOP"
 SHOP_LINK = "https://rubika.ir/TRIX__SHOP"
 GROUP_LINK = "https://rubika.ir/joing/JHGBHFGG0PKMOKLLUWKSWHNFELZKLBUJ"
 
+# بهتر است شماره کارت را در متغیر محیطی CARD_NUMBER در Railway تنظیم کنی.
 CARD_NUMBER = os.getenv("CARD_NUMBER", "5022291575298169")
 CARD_NAME = "رضا الله مددی آقبلاغی"
 
@@ -141,20 +142,11 @@ def main_menu():
     return (
         builder
         .row(
-            builder.button(
-                id="buy",
-                text="💎 خرید جم"
-            ),
-            builder.button(
-                id="orders",
-                text="📦 پیگیری سفارش"
-            )
+            builder.button(id="buy", text="💎 خرید جم"),
+            builder.button(id="orders", text="📦 پیگیری سفارش")
         )
         .row(
-            builder.button(
-                id="support",
-                text="🆘 پشتیبانی"
-            )
+            builder.button(id="support", text="🆘 پشتیبانی")
         )
         .build()
     )
@@ -424,13 +416,13 @@ def build_information_message(order):
         f"{package['price']}\n\n"
         "📧 جی‌میل:\n"
         "[ ]\n\n"
-        "🗳️ رمز جیمیل:\n"
+        "🔐 رمز جیمیل:\n"
         "[ ]\n\n"
         "📸 شات 10 تایی پشتیبانی:\n"
         "[ ]\n\n"
         "👤 اسم اکانت:\n"
         "[ ]\n\n"
-        "🆔 ایدی اکانت:\n"
+        "🆔 آیدی اکانت:\n"
         "[ ]\n\n"
         "━━━━━━━━━━━━━━\n\n"
         "اطلاعات غیرحساس و تصاویر لازم را در همین چت ارسال کنید.\n"
@@ -448,7 +440,8 @@ async def send_payment_info(message, order):
 
     package = order["package"]
 
-    await message.reply(
+    success = await safe_send_message(
+        get_chat_id(message),
         "━━━━━━━━━━━━━━\n"
         "💳 اطلاعات پرداخت\n"
         "━━━━━━━━━━━━━━\n\n"
@@ -465,6 +458,11 @@ async def send_payment_info(message, order):
         "🧾 پس از پرداخت، رسید را به صورت تصویر یا متن ارسال کنید.\n"
         "پس از دریافت رسید، سفارش برای مدیر ارسال خواهد شد."
     )
+
+    if not success:
+        # اگر ارسال پرداخت ناموفق شد، امکان تلاش دوباره وجود داشته باشد.
+        order["step"] = "collecting_info"
+        order["status"] = "collecting_info"
 
 
 # =========================================================
@@ -490,7 +488,6 @@ async def send_receipt_received_message(customer_chat_id, order):
 
 # =========================================================
 # ارسال اطلاعات سفارش و رسید برای مدیر
-# این تابع فقط پس از دریافت رسید اجرا می‌شود.
 # =========================================================
 
 async def notify_admin(order, customer_chat_id):
@@ -526,21 +523,20 @@ async def notify_admin(order, customer_chat_id):
 
     admin_text += (
         "🔐 رمز جیمیل:\n"
-        "دریافت یا ارسال نمی‌شود 🔒\n\n"
+        "🔒\n\n"
         "━━━━━━━━━━━━━━\n\n"
         "📩 پیام‌ها و فایل‌های مرحله اطلاعات سفارش در ادامه می‌آیند.\n"
         "🧾 رسید پرداخت نیز در ادامه ارسال می‌شود.\n\n"
         "⏳ وضعیت: در انتظار بررسی رسید"
     )
 
-    # ابتدا مشخصات و دکمه‌های بررسی برای مدیر ارسال می‌شوند.
     await safe_send_message(
         ADMIN_CHAT_ID,
         admin_text,
         admin_receipt_keypad(tracking_code)
     )
 
-    # اطلاعات مرحله اول فقط در این نقطه برای مدیر ارسال می‌شوند.
+    # اطلاعات مرحله اول فقط پس از دریافت رسید برای مدیر فرستاده می‌شوند.
     for item in order.get("info_messages", []):
         forwarded = await safe_forward_message(
             item["chat_id"],
@@ -554,7 +550,7 @@ async def notify_admin(order, customer_chat_id):
                 "📝 پیام ثبت‌شده مشتری:\n" + item["text"]
             )
 
-    # ارسال رسیدهای پرداخت پس از اطلاعات سفارش
+    # ارسال رسیدهای پرداخت
     for item in order.get("receipt_messages", []):
         forwarded = await safe_forward_message(
             item["chat_id"],
@@ -577,9 +573,9 @@ async def notify_admin(order, customer_chat_id):
 async def start(bot: Robot, message: Message):
     await message.reply_keypad(
         "🤖 ربات خرید جم تریکس شاپ خوش آمدید 🫠\n\n"
-        "📢 چنل اصلی اگهی اکانت : 👇\n"
+        "📢 چنل اصلی آگهی اکانت: 👇\n"
         "@TRIX__SHOP\n\n"
-        "💬 گپ اصلی شاپ : 👇\n"
+        "💬 گپ اصلی شاپ: 👇\n"
         f"{GROUP_LINK}\n\n"
         "از منوی زیر انتخاب کنید:",
         main_menu()
@@ -608,10 +604,7 @@ async def normal_message(bot: Robot, message: Message):
     text = get_text(message)
     message_id = get_message_id(message)
 
-    # -----------------------------------------------------
     # مدیر: دریافت توضیح رد رسید
-    # -----------------------------------------------------
-
     if chat_id == ADMIN_CHAT_ID and chat_id in admin_reject_waiting:
         tracking_code = admin_reject_waiting.pop(chat_id)
         customer_chat_id, order = find_order_by_tracking(tracking_code)
@@ -652,7 +645,7 @@ async def normal_message(bot: Robot, message: Message):
         )
         return
 
-    # جلوگیری از پردازش پیام‌های مدیر به عنوان پیام مشتری
+    # پیام‌های مدیر نباید به عنوان پیام مشتری پردازش شوند.
     if chat_id == ADMIN_CHAT_ID:
         return
 
@@ -664,8 +657,7 @@ async def normal_message(bot: Robot, message: Message):
     step = order.get("step")
 
     # -----------------------------------------------------
-    # مرحله اطلاعات
-    # پیام‌ها فقط ذخیره می‌شوند و هنوز برای مدیر نمی‌روند.
+    # مرحله اطلاعات: فقط ذخیره می‌شود
     # -----------------------------------------------------
 
     if step == "collecting_info":
@@ -675,17 +667,11 @@ async def normal_message(bot: Robot, message: Message):
             "text": text
         })
 
-        # نگهداری متن‌های شناخته‌شده برای درج در خلاصه سفارش
+        # متن‌ها ذخیره می‌شوند، ولی هر متن دلخواهی را
+        # به صورت خودکار اسم یا آیدی حساب فرض نمی‌کنیم.
         if text:
             order.setdefault("info_texts", []).append(text)
 
-            if not order.get("account_name"):
-                order["account_name"] = text
-            elif not order.get("account_id"):
-                order["account_id"] = text
-
-        # پیام تأیید اطلاعات مجدداً نمایش داده می‌شود
-        # تا مشتری پس از تکمیل همه اطلاعات آن را بزند.
         await message.reply_keypad(
             "✅ پیام شما برای سفارش ذخیره شد.\n\n"
             "اگر اطلاعات دیگری دارید، ارسال کنید.\n"
@@ -696,7 +682,6 @@ async def normal_message(bot: Robot, message: Message):
 
     # -----------------------------------------------------
     # مرحله دریافت رسید
-    # پیام رسید ذخیره می‌شود و سپس سفارش برای مدیر ارسال می‌شود.
     # -----------------------------------------------------
 
     if step == "collecting_receipt":
@@ -709,7 +694,6 @@ async def normal_message(bot: Robot, message: Message):
         order["status"] = "waiting_confirmation"
         order["step"] = "waiting_confirmation"
 
-        # جلوگیری از ارسال چندباره سفارش در صورت دریافت چند پیام
         if not order.get("admin_notified"):
             order["admin_notified"] = True
             await notify_admin(order, chat_id)
@@ -763,7 +747,7 @@ async def all_callbacks(bot: Robot, message: Message):
 
     if button_id == "buy":
         await message.reply_keypad(
-            "🛍 لیست جم با ایدی : 💎\n\n"
+            "🛍 لیست جم با آیدی: 💎\n\n"
             "بسته موردنظر را انتخاب کنید:",
             page1_keypad()
         )
@@ -771,7 +755,7 @@ async def all_callbacks(bot: Robot, message: Message):
 
     if button_id == "next_page":
         await message.reply_keypad(
-            "🛍 لیست جم با اطلاعات : 📌\n\n"
+            "🛍 لیست جم با اطلاعات: 📌\n\n"
             "بسته موردنظر را انتخاب کنید:",
             page2_keypad()
         )
@@ -779,7 +763,7 @@ async def all_callbacks(bot: Robot, message: Message):
 
     if button_id == "back_page":
         await message.reply_keypad(
-            "🛍 لیست جم با ایدی : 💎\n\n"
+            "🛍 لیست جم با آیدی: 💎\n\n"
             "بسته موردنظر را انتخاب کنید:",
             page1_keypad()
         )
@@ -806,6 +790,31 @@ async def all_callbacks(bot: Robot, message: Message):
         return
 
     # -----------------------------------------------------
+    # *** اصلاح اصلی ***
+    # تأیید اطلاعات باید قبل از شرط confirm_ بررسی شود.
+    # -----------------------------------------------------
+
+    if button_id == "confirm_information":
+        order = pending_orders.get(chat_id)
+
+        if not order:
+            await message.reply(
+                "❌ سفارش فعالی پیدا نشد.\n"
+                "لطفاً از منوی اصلی دوباره سفارش ثبت کنید."
+            )
+            return
+
+        if order.get("step") != "collecting_info":
+            await message.reply(
+                "⚠️ مرحله اطلاعات این سفارش قبلاً تمام شده است."
+            )
+            return
+
+        # ارسال اطلاعات پرداخت
+        await send_payment_info(message, order)
+        return
+
+    # -----------------------------------------------------
     # انتخاب بسته
     # -----------------------------------------------------
 
@@ -827,6 +836,7 @@ async def all_callbacks(bot: Robot, message: Message):
 
     # -----------------------------------------------------
     # تأیید اولیه سفارش
+    # این شرط اکنون بعد از confirm_information قرار دارد.
     # -----------------------------------------------------
 
     if button_id.startswith("confirm_"):
@@ -868,28 +878,6 @@ async def all_callbacks(bot: Robot, message: Message):
             build_information_message(order),
             info_confirmation_keypad()
         )
-        return
-
-    # -----------------------------------------------------
-    # تأیید اطلاعات
-    # این دکمه باید مستقیماً پیام پرداخت را نشان دهد.
-    # -----------------------------------------------------
-
-    if button_id == "confirm_information":
-        order = pending_orders.get(chat_id)
-
-        if not order:
-            await message.reply("❌ سفارش فعالی پیدا نشد.")
-            return
-
-        if order.get("step") != "collecting_info":
-            await message.reply(
-                "⚠️ مرحله اطلاعات این سفارش قبلاً تمام شده است."
-            )
-            return
-
-        # ارسال اطلاعات پرداخت و تغییر مرحله سفارش
-        await send_payment_info(message, order)
         return
 
     # -----------------------------------------------------
