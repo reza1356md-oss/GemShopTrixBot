@@ -912,8 +912,8 @@ async def all_callbacks(bot: Robot, message: Message):
             customer_chat_id,
             "✅ رسید پرداخت شما تأیید شد.\n\n"
             "🔄 وضعیت سفارش شما:\n"
-            "در حال انجام سفارش\n\n"
-            "━━━━━━━━━━━━━━\n\n"
+            "🟡در حال انجام سفارش\n\n"
+            "━━━━━━━━━━━━━━━━━\n\n"
             f"🎫 کد پیگیری:\n{tracking_code}\n\n"
             "💎 لطفاً منتظر تکمیل سفارش باشید.\n\n"
             "🙏 ممنون از اعتماد شما به TRIX SHOP ❤️"
@@ -995,7 +995,7 @@ async def all_callbacks(bot: Robot, message: Message):
             f"💎 بسته:\n{package['name']}\n\n"
             f"💰 قیمت:\n{package['price']}\n\n"
             f"🎫 کد پیگیری:\n{tracking_code}\n\n"
-            "━━━━━━━━━━━━━━\n\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
             "✅ سفارش شما با موفقیت انجام شد.\n\n"
             "ممنونم بابت انتخابتون\n"
             "𝐓𝐑𝐈𝐗 𝐒𝐇𝐎𝐏 ❤️"
@@ -1024,12 +1024,12 @@ async def all_callbacks(bot: Robot, message: Message):
 
         await message.reply(
             "📦 سفارش شما\n\n"
-            "━━━━━━━━━━━━━━\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━\n\n"
             f"🎫 کد پیگیری:\n{order['tracking_code']}\n\n"
             f"💎 محصول:\n{order['package']['name']}\n\n"
             f"💰 مبلغ:\n{order['package']['price']}\n\n"
             f"📌 وضعیت:\n{get_order_status_text(order)}\n\n"
-            "━━━━━━━━━━━━━━"
+            "━━━━━━━━━━━━━━━━━━━━━━━"
         )
         return
 
