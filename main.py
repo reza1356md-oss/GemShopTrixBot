@@ -89,16 +89,71 @@ def find_order_by_tracking(tracking_code):
     return data["customer_chat_id"], data["order"]
 
 
+def _read_value(obj, key, default=None):
+    """خواندن مقدار از object یا dict، برای سازگاری با ساختارهای مختلف Rubka."""
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
 def get_chat_id(message):
-    return str(getattr(message, "chat_id", "") or "")
+    # در رویدادهای معمولی chat_id در خود پیام است؛ در بعضی callbackها
+    # ممکن است فقط داخل raw_data یا chat قرار داشته باشد.
+    candidates = [
+        _read_value(message, "chat_id"),
+        _read_value(message, "chatId"),
+        _read_value(message, "sender_id"),
+    ]
+
+    raw_data = _read_value(message, "raw_data", {}) or {}
+    candidates.extend([
+        _read_value(raw_data, "chat_id"),
+        _read_value(raw_data, "chatId"),
+        _read_value(raw_data, "sender_id"),
+    ])
+
+    chat_obj = _read_value(message, "chat")
+    candidates.append(_read_value(chat_obj, "id"))
+
+    for candidate in candidates:
+        if candidate is not None and str(candidate).strip():
+            return str(candidate).strip()
+
+    return ""
 
 
 def get_message_id(message):
-    return getattr(message, "message_id", None)
+    value = _read_value(message, "message_id")
+    if value is not None:
+        return value
+    raw_data = _read_value(message, "raw_data", {}) or {}
+    return _read_value(raw_data, "message_id") or _read_value(raw_data, "id")
+
+
+def get_button_id(message):
+    """شناسه دکمه را از شکل‌های رایج دادهٔ callback می‌خواند."""
+    aux_data = _read_value(message, "aux_data")
+    button_id = _read_value(aux_data, "button_id")
+    if button_id:
+        return str(button_id)
+
+    raw_data = _read_value(message, "raw_data", {}) or {}
+    aux_data = _read_value(raw_data, "aux_data")
+    button_id = _read_value(aux_data, "button_id")
+    if button_id:
+        return str(button_id)
+
+    for key in ("button_id", "buttonId"):
+        button_id = _read_value(raw_data, key)
+        if button_id:
+            return str(button_id)
+
+    return None
 
 
 def get_text(message):
-    return (getattr(message, "text", "") or "").strip()
+    value = _read_value(message, "text", "") or ""
+    return str(value).strip()
 
 
 def remember_message(chat_id, message_id):
@@ -917,6 +972,12 @@ async def normal_message(bot: Robot, message: Message):
     text = get_text(message)
     message_id = get_message_id(message)
 
+    logger.info(
+        "[MESSAGE RECEIVED] chat_id=%s message_id=%s text=%r",
+        chat_id,
+        message_id,
+        text[:200],
+    )
     remember_message(chat_id, message_id)
 
     # -----------------------------------------------------
@@ -1095,18 +1156,31 @@ async def normal_message(bot: Robot, message: Message):
 async def all_callbacks(bot: Robot, message: Message):
     global tracking_counter
 
+    # این لاگ در ابتدای handler ثبت می‌شود تا معلوم شود کلیک اصلاً به ربات رسیده یا نه.
     try:
-        button_id = message.aux_data.button_id
+        button_id = get_button_id(message)
+        chat_id = get_chat_id(message)
+
+        logger.info(
+            "[CALLBACK RECEIVED] chat_id=%s button_id=%s message_id=%s raw_data_type=%s",
+            chat_id,
+            button_id,
+            get_message_id(message),
+            type(_read_value(message, "raw_data", {})).__name__,
+        )
     except Exception:
-        logger.exception("خواندن button_id ناموفق بود.")
+        logger.exception("خطا هنگام خواندن اطلاعات callback.")
         return
 
     if not button_id:
+        logger.warning(
+            "[CALLBACK WITHOUT BUTTON ID] chat_id=%s raw_data=%r",
+            chat_id,
+            _read_value(message, "raw_data", None),
+        )
         return
 
     button_id = str(button_id)
-
-    chat_id = get_chat_id(message)
 
     remember_message(
         chat_id,
