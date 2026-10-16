@@ -902,7 +902,7 @@ async def start(bot: Robot, message: Message):
 async def my_id(bot: Robot, message: Message):
     await safe_reply(
         message,
-        "🆔 شناسه چت شما:\n\n"
+        "🆔 b0KG4TR0BGyi09906a6a3aa2c8fc9c47:\n\n"
         f"{message.chat_id}"
     )
 
