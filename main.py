@@ -4,6 +4,7 @@ import logging
 import re
 import inspect
 import asyncio
+import time
 
 from rubka import Robot, Message
 from rubka.keypad import ChatKeypadBuilder
@@ -34,9 +35,15 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 )
+
 logger = logging.getLogger("GemShopTrixBot")
 
 bot = Robot(token=BOT_TOKEN)
+
+
+# =========================================================
+# حافظه موقت ربات
+# =========================================================
 
 pending_orders = {}
 orders_by_tracking = {}
@@ -45,13 +52,16 @@ admin_reject_waiting = {}
 
 chat_messages = {}
 
-# مشتریانی که در حال نوشتن پیام پیگیری هستند
+# درخواست پیگیری در حال جمع‌آوری پیام‌های مشتری
 tracking_sessions = {}
 
-# درخواست‌های پیگیری ارسال‌شده برای مدیر
+# درخواست‌های پیگیری ثبت‌شده
 tracking_requests = {}
 
-# پاسخ مدیر که منتظر تأیید ارسال است
+# درخواست پیگیری که مدیر قصد پاسخ دادن به آن را دارد
+admin_tracking_waiting = {}
+
+# پاسخ‌های آماده ارسال مدیر
 tracking_admin_drafts = {}
 
 tracking_counter = 0
@@ -96,6 +106,7 @@ def remember_message(chat_id, message_id):
         return
 
     chat_id = str(chat_id)
+
     chat_messages.setdefault(chat_id, [])
 
     if message_id not in chat_messages[chat_id]:
@@ -132,9 +143,6 @@ async def resolve_result(result):
 
 
 async def safe_send_message(chat_id, text, keypad=None):
-    """
-    ارسال پیام با ثبت خطا و شناسه پیام در صورت دسترسی.
-    """
     chat_id = str(chat_id)
 
     try:
@@ -162,6 +170,7 @@ async def safe_send_message(chat_id, text, keypad=None):
             chat_id,
             sent_message_id
         )
+
         return True
 
     except Exception:
@@ -169,6 +178,7 @@ async def safe_send_message(chat_id, text, keypad=None):
             "ارسال پیام ناموفق بود | chat_id=%s",
             chat_id
         )
+
         return False
 
 
@@ -186,7 +196,10 @@ async def safe_reply(message, text, keypad=None):
         sent_message_id = extract_message_id(result)
 
         if sent_message_id is not None:
-            remember_message(get_chat_id(message), sent_message_id)
+            remember_message(
+                get_chat_id(message),
+                sent_message_id
+            )
 
         return True
 
@@ -195,7 +208,13 @@ async def safe_reply(message, text, keypad=None):
             "پاسخ به پیام ناموفق بود | chat_id=%s",
             get_chat_id(message)
         )
-        return False
+
+        # تلاش دوم از طریق send_message
+        return await safe_send_message(
+            get_chat_id(message),
+            text,
+            keypad
+        )
 
 
 async def safe_forward_message(from_chat_id, message_id, to_chat_id):
@@ -203,14 +222,15 @@ async def safe_forward_message(from_chat_id, message_id, to_chat_id):
         return False
 
     try:
-        await resolve_result(
+        result = await resolve_result(
             bot.forward_message(
                 str(from_chat_id),
                 message_id,
                 str(to_chat_id)
             )
         )
-        return True
+
+        return result is not False
 
     except Exception:
         logger.exception(
@@ -219,6 +239,7 @@ async def safe_forward_message(from_chat_id, message_id, to_chat_id):
             to_chat_id,
             message_id
         )
+
         return False
 
 
@@ -237,8 +258,12 @@ async def try_delete_message(chat_id, message_id):
             continue
 
         try:
-            await resolve_result(method(str(chat_id), message_id))
+            await resolve_result(
+                method(str(chat_id), message_id)
+            )
+
             return True
+
         except Exception:
             logger.debug(
                 "حذف پیام با %s ناموفق بود.",
@@ -263,7 +288,7 @@ def get_order_status_text(order):
         "collecting_info": "📝 در حال تکمیل اطلاعات",
         "collecting_receipt": "💳 در انتظار رسید پرداخت",
         "waiting_confirmation": "⏳ در انتظار تأیید رسید",
-        "in_progress": "🔄 در حال انجام سفارش",
+        "in_progress": "🟡 در حال انجام سفارش",
         "rejected": "❌ رسید رد شده",
         "completed": "✅ تکمیل شده",
         "cancelled": "❌ لغو شده",
@@ -541,7 +566,7 @@ def build_information_message(order):
 
 
 # =========================================================
-# اطلاعات پرداخت
+# پرداخت و رسید
 # =========================================================
 
 async def send_payment_info(message, order):
@@ -645,14 +670,17 @@ async def notify_admin(order, customer_chat_id):
 
 
 # =========================================================
-# پیگیری سفارش: ارسال پیام‌های مشتری برای مدیر
+# پیگیری سفارش
 # =========================================================
 
 async def send_tracking_request_to_admin(request_id):
     request_data = tracking_requests.get(request_id)
 
     if not request_data:
-        logger.error("درخواست پیگیری پیدا نشد: %s", request_id)
+        logger.error(
+            "درخواست پیگیری پیدا نشد: %s",
+            request_id
+        )
         return False
 
     customer_chat_id = request_data["customer_chat_id"]
@@ -665,11 +693,13 @@ async def send_tracking_request_to_admin(request_id):
         f"{request_data.get('tracking_code') or 'ارسال نشده'}\n\n"
         f"🆔 شماره درخواست:\n{request_id}\n\n"
         "📥 پیام‌های مشتری در ادامه ارسال می‌شوند.\n\n"
-        "✍️ برای پاسخ، دکمه زیر را بزنید؛ سپس پاسخ خود را به صورت متن ارسال کنید."
+        "برای پاسخ به همین درخواست، دکمه ارسال پاسخ را بزنید."
     )
 
-    # ابتدا پیام اصلی درخواست به مدیر ارسال می‌شود
-    admin_sent = await safe_send_message(ADMIN_CHAT_ID, admin_text)
+    admin_sent = await safe_send_message(
+        ADMIN_CHAT_ID,
+        admin_text
+    )
 
     if not admin_sent:
         logger.error(
@@ -678,7 +708,7 @@ async def send_tracking_request_to_admin(request_id):
         )
         return False
 
-    # سپس پیام‌های مشتری یکی‌یکی فوروارد می‌شوند
+    # انتقال پیام‌های مشتری به مدیر
     for item in request_data.get("messages", []):
         message_id = item.get("message_id")
 
@@ -692,7 +722,6 @@ async def send_tracking_request_to_admin(request_id):
             if forwarded:
                 continue
 
-        # اگر پیام قابل فوروارد نبود، حداقل متن آن را برای مدیر بفرست
         if item.get("text"):
             await safe_send_message(
                 ADMIN_CHAT_ID,
@@ -706,16 +735,136 @@ async def send_tracking_request_to_admin(request_id):
                 f"شناسه پیام: {message_id}"
             )
 
+    # درخواست به صورت مستقل قابل پاسخ‌گویی است.
     await safe_send_message(
         ADMIN_CHAT_ID,
-        "برای پاسخ به این درخواست، دکمه زیر را بزنید.\n"
+        "✍️ برای پاسخ به این درخواست، دکمه زیر را بزنید.\n"
         f"شماره درخواست: {request_id}",
         admin_tracking_reply_keypad(request_id)
     )
 
     request_data["sent_to_admin"] = True
-    logger.info("درخواست پیگیری برای مدیر ارسال شد: %s", request_id)
+
+    logger.info(
+        "درخواست پیگیری برای مدیر ارسال شد: %s",
+        request_id
+    )
+
     return True
+
+
+async def finish_tracking_session(chat_id, message):
+    global tracking_counter
+
+    chat_id = str(chat_id)
+    session = tracking_sessions.get(chat_id)
+
+    if not session:
+        await safe_reply(
+            message,
+            "⚠️ درخواست پیگیری فعالی پیدا نشد.\n"
+            "لطفاً دوباره گزینه «پیگیری سفارش» را انتخاب کنید.",
+            home_button()
+        )
+        return
+
+    if not session.get("messages"):
+        await safe_reply(
+            message,
+            "⚠️ هنوز پیامی ارسال نکرده‌اید.\n"
+            "ابتدا متن، عکس یا ویس خود را ارسال کنید.",
+            tracking_confirm_keypad()
+        )
+        return
+
+    tracking_counter += 1
+    request_id = f"T{int(time.time())}{tracking_counter}"
+
+    all_text = "\n".join(session.get("texts", []))
+    match = re.search(r"#[0-9]{4,}", all_text)
+    tracking_code = match.group(0) if match else None
+
+    # ذخیره درخواست پیش از هر ارسال شبکه‌ای
+    tracking_requests[request_id] = {
+        "customer_chat_id": chat_id,
+        "messages": list(session["messages"]),
+        "tracking_code": tracking_code,
+        "sent_to_admin": False,
+        "status": "submitted",
+        "created_at": time.time(),
+    }
+
+    tracking_sessions.pop(chat_id, None)
+
+    # ارسال پاسخ به مشتری مستقل از ارسال به مدیر
+    customer_notified = await safe_send_message(
+        chat_id,
+        "پیام شما دریافت شد✅\n"
+        "در اولین فرصت به پیام شما پاسخ داده خواهد شد🫠\n"
+        "𝐓𝐑𝐈𝐗 𝐒𝐇𝐎𝐏 | تریکس شاپ",
+        home_button()
+    )
+
+    if not customer_notified:
+        logger.error(
+            "ارسال پیام تأیید به مشتری ناموفق بود | chat_id=%s",
+            chat_id
+        )
+
+    admin_notified = await send_tracking_request_to_admin(request_id)
+
+    if not admin_notified:
+        logger.error(
+            "ارسال درخواست پیگیری به مدیر ناموفق بود | request_id=%s",
+            request_id
+        )
+
+        await safe_send_message(
+            chat_id,
+            "⚠️ درخواست شما در ربات ثبت شده، اما ارسال آن برای مدیریت "
+            "با مشکل روبه‌رو شد.\n"
+            "لطفاً دوباره تلاش کنید یا از بخش پشتیبانی پیام بدهید.",
+            home_button()
+        )
+
+
+async def send_tracking_reply_to_customer(request_id):
+    request_data = tracking_requests.get(request_id)
+
+    if not request_data:
+        return False, "درخواست پیگیری پیدا نشد."
+
+    draft = tracking_admin_drafts.get(request_id)
+
+    if not draft:
+        return False, "پاسخی برای این درخواست ثبت نشده است."
+
+    reply_text = (draft.get("reply_text") or "").strip()
+
+    if not reply_text:
+        return False, "ابتدا پاسخ خود را به صورت متن ارسال کنید."
+
+    customer_chat_id = request_data["customer_chat_id"]
+
+    sent = await safe_send_message(
+        customer_chat_id,
+        "📩 پاسخ پیگیری سفارش شما:\n\n"
+        f"{reply_text}\n\n"
+        "━━━━━━━━━━━━━━\n\n"
+        "🔸 𝐓𝐑𝐈𝐗 𝐒𝐇𝐎𝐏 | تریکس شاپ 🔸",
+        home_button()
+    )
+
+    if not sent:
+        return False, "ارسال پاسخ به مشتری ناموفق بود."
+
+    request_data["status"] = "answered"
+    request_data["answered_at"] = time.time()
+
+    tracking_admin_drafts.pop(request_id, None)
+    admin_tracking_waiting.pop(ADMIN_CHAT_ID, None)
+
+    return True, "پاسخ پیگیری با موفقیت برای مشتری ارسال شد. ✅"
 
 
 # =========================================================
@@ -725,7 +874,11 @@ async def send_tracking_request_to_admin(request_id):
 @bot.on_message(commands=["start"])
 async def start(bot: Robot, message: Message):
     chat_id = get_chat_id(message)
-    remember_message(chat_id, get_message_id(message))
+
+    remember_message(
+        chat_id,
+        get_message_id(message)
+    )
 
     tracking_sessions.pop(chat_id, None)
 
@@ -770,20 +923,26 @@ async def normal_message(bot: Robot, message: Message):
     # پیام‌های مدیر
     # -----------------------------------------------------
 
-    if chat_id == ADMIN_CHAT_ID:
-        # دریافت دلیل رد رسید
+    if chat_id == str(ADMIN_CHAT_ID):
+
+        # مدیر در حال نوشتن دلیل رد رسید است.
         if chat_id in admin_reject_waiting:
             tracking_code = admin_reject_waiting.pop(chat_id)
+
             customer_chat_id, order = find_order_by_tracking(
                 tracking_code
             )
 
             if not order:
-                await safe_reply(message, "❌ سفارش موردنظر پیدا نشد.")
+                await safe_reply(
+                    message,
+                    "❌ سفارش موردنظر پیدا نشد."
+                )
                 return
 
             if not text:
                 admin_reject_waiting[chat_id] = tracking_code
+
                 await safe_reply(
                     message,
                     "⚠️ لطفاً دلیل رد رسید را به صورت متن ارسال کنید."
@@ -816,25 +975,42 @@ async def normal_message(bot: Robot, message: Message):
             )
             return
 
-        # مدیر در حال نوشتن پاسخ پیگیری است
-        if chat_id in tracking_admin_drafts:
-            draft = tracking_admin_drafts[chat_id]
+        # مدیر در حال نوشتن پاسخ یکی از درخواست‌های پیگیری است.
+        request_id = admin_tracking_waiting.get(chat_id)
+
+        if request_id:
+            request_data = tracking_requests.get(request_id)
+
+            if not request_data:
+                admin_tracking_waiting.pop(chat_id, None)
+
+                await safe_reply(
+                    message,
+                    "⚠️ درخواست پیگیری پیدا نشد. دوباره درخواست را انتخاب کنید."
+                )
+                return
 
             if not text:
                 await safe_reply(
                     message,
-                    "⚠️ لطفاً پاسخ پیگیری را به صورت متن ارسال کنید."
+                    "⚠️ در این نسخه پاسخ پیگیری باید متن باشد.\n"
+                    "لطفاً پاسخ را به صورت پیام متنی ارسال کنید."
                 )
                 return
 
-            draft["reply_text"] = text
-            draft["reply_message_id"] = message_id
+            tracking_admin_drafts[request_id] = {
+                "request_id": request_id,
+                "reply_text": text,
+                "reply_message_id": message_id,
+            }
+
+            admin_tracking_waiting.pop(chat_id, None)
 
             await safe_reply(
                 message,
                 "✅ پاسخ شما ثبت شد.\n\n"
-                "اکنون دکمه «ارسال پاسخ پیگیری سفارش» را بزنید.",
-                admin_tracking_reply_keypad(draft["request_id"])
+                "برای ارسال آن به مشتری، دکمه زیر را بزنید.",
+                admin_tracking_reply_keypad(request_id)
             )
             return
 
@@ -855,7 +1031,7 @@ async def normal_message(bot: Robot, message: Message):
         if text:
             session.setdefault("texts", []).append(text)
 
-        # مهم: در این مرحله عمداً هیچ پاسخی برای مشتری ارسال نمی‌شود.
+        # پاسخ خودکار ارسال نمی‌شود.
         logger.info(
             "پیام پیگیری ذخیره شد | chat_id=%s | message_id=%s",
             chat_id,
@@ -928,8 +1104,14 @@ async def all_callbacks(bot: Robot, message: Message):
     if not button_id:
         return
 
+    button_id = str(button_id)
+
     chat_id = get_chat_id(message)
-    remember_message(chat_id, get_message_id(message))
+
+    remember_message(
+        chat_id,
+        get_message_id(message)
+    )
 
     logger.info(
         "[CALLBACK] chat_id=%s button_id=%s",
@@ -948,7 +1130,7 @@ async def all_callbacks(bot: Robot, message: Message):
         or button_id.startswith("send_tracking_reply_")
     )
 
-    if is_admin_button and chat_id != ADMIN_CHAT_ID:
+    if is_admin_button and chat_id != str(ADMIN_CHAT_ID):
         await safe_reply(
             message,
             "⛔ این دکمه فقط برای مدیر ربات قابل استفاده است."
@@ -969,62 +1151,32 @@ async def all_callbacks(bot: Robot, message: Message):
         if not request_data:
             await safe_reply(
                 message,
-                "❌ درخواست پیگیری پیدا نشد یا قبلاً پاسخ داده شده است."
+                "❌ درخواست پیگیری پیدا نشد."
             )
             return
 
-        draft = tracking_admin_drafts.get(ADMIN_CHAT_ID)
+        draft = tracking_admin_drafts.get(request_id)
 
-        # اگر پاسخ آماده است، آن را ارسال کن
-        if draft and draft.get("request_id") == request_id:
-            reply_text = (draft.get("reply_text") or "").strip()
-
-            if not reply_text:
-                await safe_reply(
-                    message,
-                    "⚠️ هنوز پاسخ خود را ننوشته‌اید.\n"
-                    "ابتدا پاسخ را به صورت پیام متنی ارسال کنید."
-                )
-                return
-
-            customer_chat_id = request_data["customer_chat_id"]
-
-            sent = await safe_send_message(
-                customer_chat_id,
-                "📩 پاسخ پیگیری سفارش شما:\n\n"
-                f"{reply_text}\n\n"
-                "━━━━━━━━━━━━━━\n\n"
-                "🔸 𝐓𝐑𝐈𝐗 𝐒𝐇𝐎𝐏 | تریکس شاپ 🔸",
-                home_button()
+        if draft and draft.get("reply_text"):
+            success, result_text = await send_tracking_reply_to_customer(
+                request_id
             )
 
-            if sent:
-                tracking_requests.pop(request_id, None)
-                tracking_admin_drafts.pop(ADMIN_CHAT_ID, None)
-
-                await safe_reply(
-                    message,
-                    "✅ پاسخ پیگیری با موفقیت برای مشتری ارسال شد."
-                )
-            else:
-                await safe_reply(
-                    message,
-                    "❌ ارسال پاسخ ناموفق بود. خطای ارسال در لاگ ثبت شده است."
-                )
+            await safe_reply(
+                message,
+                result_text
+            )
 
             return
 
-        # پاسخ هنوز نوشته نشده است
-        tracking_admin_drafts[ADMIN_CHAT_ID] = {
-            "request_id": request_id,
-            "reply_text": "",
-            "reply_message_id": None,
-        }
+        # تعیین می‌کنیم پیام بعدی مدیر پاسخ همین درخواست باشد.
+        admin_tracking_waiting[chat_id] = request_id
 
         await safe_reply(
             message,
-            "✍️ اکنون پاسخ خود را به صورت یک پیام متنی ارسال کنید.\n\n"
-            "بعد از ارسال پاسخ، دکمه «ارسال پاسخ پیگیری سفارش» را بزنید."
+            "✍️ لطفاً پاسخ خود را در پیام بعدی به صورت متن ارسال کنید.\n\n"
+            f"شماره درخواست: {request_id}\n\n"
+            "بعد از ارسال پاسخ، دکمه ارسال پاسخ پیگیری را بزنید."
         )
         return
 
@@ -1033,15 +1185,23 @@ async def all_callbacks(bot: Robot, message: Message):
     # -----------------------------------------------------
 
     if button_id.startswith("approve_receipt_"):
-        tracking_code = button_id.replace("approve_receipt_", "", 1)
-        customer_chat_id, order = find_order_by_tracking(tracking_code)
+        tracking_code = button_id.replace(
+            "approve_receipt_", "", 1
+        )
+
+        customer_chat_id, order = find_order_by_tracking(
+            tracking_code
+        )
 
         if not order:
             await safe_reply(message, "❌ سفارش پیدا نشد.")
             return
 
         if order.get("status") != "waiting_confirmation":
-            await safe_reply(message, "⚠️ این رسید قبلاً بررسی شده است.")
+            await safe_reply(
+                message,
+                "⚠️ این رسید قبلاً بررسی شده است."
+            )
             return
 
         order["status"] = "in_progress"
@@ -1052,7 +1212,7 @@ async def all_callbacks(bot: Robot, message: Message):
         await safe_send_message(
             customer_chat_id,
             "✅ رسید پرداخت شما تأیید شد.\n\n"
-            "🔄 وضعیت سفارش شما: در حال انجام سفارش\n\n"
+            "🟡 وضعیت سفارش شما: در حال انجام سفارش\n\n"
             f"🎫 کد پیگیری:\n{tracking_code}\n\n"
             "🙏 ممنون از اعتماد شما به TRIX SHOP ❤️",
             home_button()
@@ -1074,18 +1234,26 @@ async def all_callbacks(bot: Robot, message: Message):
     # -----------------------------------------------------
 
     if button_id.startswith("reject_receipt_"):
-        tracking_code = button_id.replace("reject_receipt_", "", 1)
-        customer_chat_id, order = find_order_by_tracking(tracking_code)
+        tracking_code = button_id.replace(
+            "reject_receipt_", "", 1
+        )
+
+        customer_chat_id, order = find_order_by_tracking(
+            tracking_code
+        )
 
         if not order:
             await safe_reply(message, "❌ سفارش پیدا نشد.")
             return
 
         if order.get("status") != "waiting_confirmation":
-            await safe_reply(message, "⚠️ این رسید قبلاً بررسی شده است.")
+            await safe_reply(
+                message,
+                "⚠️ این رسید قبلاً بررسی شده است."
+            )
             return
 
-        admin_reject_waiting[ADMIN_CHAT_ID] = tracking_code
+        admin_reject_waiting[chat_id] = tracking_code
 
         await safe_reply(
             message,
@@ -1099,15 +1267,23 @@ async def all_callbacks(bot: Robot, message: Message):
     # -----------------------------------------------------
 
     if button_id.startswith("order_done_"):
-        tracking_code = button_id.replace("order_done_", "", 1)
-        customer_chat_id, order = find_order_by_tracking(tracking_code)
+        tracking_code = button_id.replace(
+            "order_done_", "", 1
+        )
+
+        customer_chat_id, order = find_order_by_tracking(
+            tracking_code
+        )
 
         if not order:
             await safe_reply(message, "❌ سفارش پیدا نشد.")
             return
 
         if order.get("status") != "in_progress":
-            await safe_reply(message, "⚠️ این سفارش در وضعیت انجام نیست.")
+            await safe_reply(
+                message,
+                "⚠️ این سفارش در وضعیت انجام نیست."
+            )
             return
 
         order["status"] = "completed"
@@ -1140,8 +1316,6 @@ async def all_callbacks(bot: Robot, message: Message):
 
     if button_id == "back_home":
         tracking_sessions.pop(chat_id, None)
-
-        await clean_chat(chat_id)
 
         await safe_reply(
             message,
@@ -1249,7 +1423,9 @@ async def all_callbacks(bot: Robot, message: Message):
     # -----------------------------------------------------
 
     if button_id.startswith("confirm_"):
-        package_id = button_id.replace("confirm_", "", 1)
+        package_id = button_id.replace(
+            "confirm_", "", 1
+        )
 
         if package_id not in PACKAGES:
             return
@@ -1261,6 +1437,7 @@ async def all_callbacks(bot: Robot, message: Message):
 
         if old_order:
             old_tracking = old_order.get("tracking_code")
+
             if old_tracking:
                 orders_by_tracking.pop(old_tracking, None)
 
@@ -1291,13 +1468,14 @@ async def all_callbacks(bot: Robot, message: Message):
         return
 
     # -----------------------------------------------------
-    # پیگیری سفارش: شروع
+    # شروع پیگیری سفارش
     # -----------------------------------------------------
 
     if button_id == "orders":
         tracking_sessions[chat_id] = {
             "messages": [],
             "texts": [],
+            "started_at": time.time()
         }
 
         await safe_reply(
@@ -1312,84 +1490,11 @@ async def all_callbacks(bot: Robot, message: Message):
         return
 
     # -----------------------------------------------------
-    # پیگیری سفارش: تأیید پیام
+    # تأیید پیام پیگیری
     # -----------------------------------------------------
 
     if button_id == "confirm_tracking_message":
-        session = tracking_sessions.get(chat_id)
-
-        logger.info(
-            "تأیید پیگیری | chat_id=%s | session_exists=%s",
-            chat_id,
-            session is not None
-        )
-
-        if session is None:
-            await safe_reply(
-                message,
-                "⚠️ درخواست پیگیری فعالی پیدا نشد.\n"
-                "لطفاً دوباره از صفحه اصلی گزینه «پیگیری سفارش» را انتخاب کنید.",
-                home_button()
-            )
-            return
-
-        if not session.get("messages"):
-            await safe_reply(
-                message,
-                "⚠️ هنوز پیامی ارسال نکرده‌اید.\n"
-                "ابتدا متن، عکس، ویس یا پیام موردنظر را ارسال کنید.",
-                tracking_confirm_keypad()
-            )
-            return
-
-        tracking_counter += 1
-        request_id = str(tracking_counter)
-
-        all_text = "\n".join(session.get("texts", []))
-        match = re.search(r"#[0-9]{4,}", all_text)
-        tracking_code = match.group(0) if match else None
-
-        tracking_requests[request_id] = {
-            "customer_chat_id": chat_id,
-            "messages": list(session["messages"]),
-            "tracking_code": tracking_code,
-            "sent_to_admin": False,
-        }
-
-        # پایان حالت جمع‌آوری پیام
-        tracking_sessions.pop(chat_id, None)
-
-        # اول پاسخ قطعی به مشتری
-        customer_notified = await safe_send_message(
-            chat_id,
-            "پیام شما دریافت شد✅\n"
-            "در اولین فرصت به پیام شما پاسخ داده خواهد شد🫠\n"
-            "𝐓𝐑𝐈𝐗 𝐒𝐇𝐎𝐏 | تریکس شاپ",
-            home_button()
-        )
-
-        # سپس ارسال درخواست برای مدیر
-        admin_notified = await send_tracking_request_to_admin(request_id)
-
-        if not admin_notified:
-            logger.error(
-                "ارسال درخواست پیگیری به مدیر ناموفق بود. request_id=%s",
-                request_id
-            )
-
-            await safe_send_message(
-                chat_id,
-                "⚠️ پیام شما ثبت شده، اما ارسال خودکار آن برای مدیریت با مشکل روبه‌رو شد.\n"
-                "لطفاً کمی بعد دوباره از گزینه پیگیری سفارش استفاده کنید.",
-                home_button()
-            )
-
-        if not customer_notified:
-            logger.error(
-                "ارسال پیام تأیید به مشتری ناموفق بود. chat_id=%s",
-                chat_id
-            )
-
+        await finish_tracking_session(chat_id, message)
         return
 
     # -----------------------------------------------------
