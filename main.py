@@ -21,7 +21,6 @@ SHOP_USERNAME = "@TRIX__SHOP"
 SHOP_LINK = "https://rubika.ir/TRIX__SHOP"
 GROUP_LINK = "https://rubika.ir/joing/JHGBHFGG0PKMOKLLUWKSWHNFELZKLBUJ"
 
-# بهتر است شماره کارت را در متغیر محیطی CARD_NUMBER در Railway تنظیم کنی.
 CARD_NUMBER = os.getenv("CARD_NUMBER", "5022291575298169")
 CARD_NAME = "رضا الله مددی آقبلاغی"
 
@@ -32,17 +31,14 @@ logger = logging.getLogger("GemShopTrixBot")
 
 bot = Robot(token=BOT_TOKEN)
 
-# سفارش فعال هر مشتری
 pending_orders = {}
-
-# سفارش‌ها بر اساس کد پیگیری
 orders_by_tracking = {}
-
-# کدهای استفاده‌شده
 used_tracking_codes = set()
-
-# سفارش‌هایی که مدیر باید برایشان دلیل رد ارسال کند
 admin_reject_waiting = {}
+
+# پیام‌هایی که در چت مشتری ثبت شده‌اند.
+# برای تلاش به پاک‌کردن پیام‌های همین ربات نگهداری می‌شوند.
+chat_messages = {}
 
 
 # =========================================================
@@ -79,17 +75,87 @@ def get_text(message):
     return (getattr(message, "text", "") or "").strip()
 
 
+def remember_message(chat_id, message_id):
+    if message_id is None:
+        return
+
+    chat_messages.setdefault(str(chat_id), [])
+
+    if message_id not in chat_messages[str(chat_id)]:
+        chat_messages[str(chat_id)].append(message_id)
+
+    # جلوگیری از رشد نامحدود حافظه
+    chat_messages[str(chat_id)] = chat_messages[str(chat_id)][-100:]
+
+
+async def try_delete_message(chat_id, message_id):
+    """
+    تلاش برای حذف پیام با متدهای احتمالی کتابخانه.
+    پشتیبانی واقعی به نسخه نصب‌شده Rubka بستگی دارد.
+    """
+    if message_id is None:
+        return False
+
+    possible_methods = [
+        "delete_message",
+        "delete_messages",
+        "delete_chat_message",
+    ]
+
+    for method_name in possible_methods:
+        method = getattr(bot, method_name, None)
+
+        if not callable(method):
+            continue
+
+        try:
+            result = method(chat_id, message_id)
+
+            if hasattr(result, "__await__"):
+                await result
+
+            return True
+
+        except Exception:
+            logger.debug(
+                "حذف پیام با %s ناموفق بود.",
+                method_name,
+                exc_info=True
+            )
+
+    return False
+
+
+async def clean_chat(chat_id):
+    """
+    تلاش می‌کند پیام‌های ثبت‌شده‌ی ربات در این چت را پاک کند.
+    حذف پیام مشتری تنها در صورت پشتیبانی صریح API ممکن است.
+    """
+    chat_id = str(chat_id)
+    message_ids = list(chat_messages.get(chat_id, []))
+
+    for message_id in reversed(message_ids):
+        await try_delete_message(chat_id, message_id)
+
+    chat_messages[chat_id] = []
+
+
 async def safe_send_message(chat_id, text, keypad=None):
     try:
         if keypad is not None:
-            await bot.send_message(
+            result = await bot.send_message(
                 chat_id,
                 text,
                 chat_keypad=keypad,
                 chat_keypad_type="New"
             )
         else:
-            await bot.send_message(chat_id, text)
+            result = await bot.send_message(chat_id, text)
+
+        sent_message_id = getattr(result, "message_id", None)
+
+        if sent_message_id is not None:
+            remember_message(chat_id, sent_message_id)
 
         return True
 
@@ -133,6 +199,36 @@ def get_order_status_text(order):
 
 
 # =========================================================
+# دکمه بازگشت به صفحه اصلی
+# =========================================================
+
+def home_button():
+    builder = ChatKeypadBuilder()
+
+    return (
+        builder
+        .row(
+            builder.button(
+                id="back_home",
+                text="🏠 بازگشت به صفحه اصلی"
+            )
+        )
+        .build()
+    )
+
+
+def with_home_button(keypad):
+    """
+    دکمه بازگشت به صفحه اصلی را به انتهای کیبورد اضافه می‌کند.
+    """
+    builder = ChatKeypadBuilder()
+
+    # دکمه‌های هر صفحه در توابع اصلی ساخته می‌شوند.
+    # این تابع برای ساخت یک کیبورد مستقل صفحه اصلی استفاده نمی‌شود.
+    return keypad
+
+
+# =========================================================
 # منوی اصلی
 # =========================================================
 
@@ -171,6 +267,7 @@ def page1_keypad():
         .row(builder.button(id="monthly_id", text="📆 Monthly — 2.690💸"))
         .row(builder.button(id="weekly_id", text="🗓 Weekly — 549💸"))
         .row(builder.button(id="next_page", text="➡️ صفحه دوم"))
+        .row(builder.button(id="back_home", text="🏠 بازگشت به صفحه اصلی"))
         .build()
     )
 
@@ -194,6 +291,7 @@ def page2_keypad():
         .row(builder.button(id="level_200", text="⚠️ 200 جم — 230"))
         .row(builder.button(id="level_350", text="⚠️ 350 جم — 295"))
         .row(builder.button(id="back_page", text="⬅️ صفحه اول"))
+        .row(builder.button(id="back_home", text="🏠 بازگشت به صفحه اصلی"))
         .build()
     )
 
@@ -219,6 +317,12 @@ def order_keypad(package_id):
                 text="❌ لغو"
             )
         )
+        .row(
+            builder.button(
+                id="back_home",
+                text="🏠 بازگشت به صفحه اصلی"
+            )
+        )
         .build()
     )
 
@@ -242,6 +346,12 @@ def info_confirmation_keypad():
             builder.button(
                 id="cancel_order",
                 text="❌ لغو سفارش"
+            )
+        )
+        .row(
+            builder.button(
+                id="back_home",
+                text="🏠 بازگشت به صفحه اصلی"
             )
         )
         .build()
@@ -291,96 +401,24 @@ def admin_done_keypad(tracking_code):
 # =========================================================
 
 PACKAGES = {
-    "gem_110": {
-        "name": "110 Gem",
-        "price": "275✨",
-        "type": "id"
-    },
-    "gem_231": {
-        "name": "231 Gem",
-        "price": "518✨",
-        "type": "id"
-    },
-    "gem_583": {
-        "name": "583 Gem",
-        "price": "1375✨",
-        "type": "id"
-    },
-    "gem_1060": {
-        "name": "1060K Gem",
-        "price": "2450✨",
-        "type": "id"
-    },
-    "gem_2180": {
-        "name": "2180K Gem",
-        "price": "5,119✨",
-        "type": "id"
-    },
-    "gem_5000": {
-        "name": "5K Gem",
-        "price": "12.3 MiL🌟",
-        "type": "id"
-    },
-    "gem_11000": {
-        "name": "11K GEM",
-        "price": "23.890 MiL🌟",
-        "type": "id"
-    },
-    "monthly_id": {
-        "name": "Monthly",
-        "price": "2.690💸",
-        "type": "id"
-    },
-    "weekly_id": {
-        "name": "Weekly",
-        "price": "569💸",
-        "type": "id"
-    },
-    "info_weekly": {
-        "name": "هفتگی (450 جم)",
-        "price": "399.000T💸",
-        "type": "info"
-    },
-    "info_monthly": {
-        "name": "ماهانه (2.600 جم)",
-        "price": "1.950.000T💸",
-        "type": "info"
-    },
-    "info_light": {
-        "name": "هفتگی لایت (100 جم)",
-        "price": "195.000T💸",
-        "type": "info"
-    },
-    "offer_1": {
-        "name": "آفر یک دلاری",
-        "price": "220.000T💸",
-        "type": "info"
-    },
-    "offer_2": {
-        "name": "آفر دو دلاری",
-        "price": "385.000T💸",
-        "type": "info"
-    },
-    "levelup": {
-        "name": "لول آپ پس (1250 Gem)",
-        "price": "980",
-        "type": "info"
-    },
-    "level_120": {
-        "name": "120 جم",
-        "price": "185",
-        "type": "info"
-    },
-    "level_200": {
-        "name": "200 جم",
-        "price": "230",
-        "type": "info"
-    },
-    "level_350": {
-        "name": "350 جم",
-        "price": "295",
-        "type": "info"
-    }
+    "gem_110": {"name": "110 Gem", "price": "275✨", "type": "id"},
+    "gem_231": {"name": "231 Gem", "price": "518✨", "type": "id"},
+    "gem_583": {"name": "583 Gem", "price": "1375✨", "type": "id"},
+    "gem_1060": {"name": "1060K Gem", "price": "2450✨", "type": "id"},
+    "gem_2180": {"name": "2180K Gem", "price": "5,119✨", "type": "id"},
+    "gem_5000": {"name": "5K Gem", "price": "12.3 MiL🌟", "type": "id"},
+    "gem_11000": {"name": "11K GEM", "price": "23.890 MiL🌟", "type": "id"},
+    "monthly_id": {"name": "Monthly", "price": "2.690💸", "type": "id"},
+    "weekly_id": {"name": "Weekly", "price": "569💸", "type": "id"},
+    "info_weekly": {"name": "هفتگی (450 جم)", "price": "399.000T💸", "type": "info"},
+    "info_monthly": {"name": "ماهانه (2.600 جم)", "price": "1.950.000T💸", "type": "info"},
+    "info_light": {"name": "هفتگی لایت (100 جم)", "price": "195.000T💸", "type": "info"},
+    "offer_1": {"name": "آفر یک دلاری", "price": "220.000T💸", "type": "info"},
+    "offer_2": {"name": "آفر دو دلاری", "price": "385.000T💸", "type": "info"},
+    "levelup": {"name": "لول آپ پس (1250 Gem)", "price": "980", "type": "info"},
+    "level_120": {"name": "120 جم", "price": "185", "type": "info"},
+    "level_200": {"name": "200 جم", "price": "230", "type": "info"},
+    "level_350": {"name": "350 جم", "price": "295", "type": "info"}
 }
 
 
@@ -456,11 +494,11 @@ async def send_payment_info(message, order):
         f"{package['price']}\n\n"
         "💸 لطفاً مبلغ دقیق سفارش را واریز کنید.\n\n"
         "🧾 پس از پرداخت، رسید را به صورت تصویر یا متن ارسال کنید.\n"
-        "پس از دریافت رسید، سفارش برای مدیر ارسال خواهد شد."
+        "پس از دریافت رسید، سفارش برای مدیر ارسال خواهد شد.",
+        home_button()
     )
 
     if not success:
-        # اگر ارسال پرداخت ناموفق شد، امکان تلاش دوباره وجود داشته باشد.
         order["step"] = "collecting_info"
         order["status"] = "collecting_info"
 
@@ -482,7 +520,8 @@ async def send_receipt_received_message(customer_chat_id, order):
         f"🎫 کد پیگیری سفارش:\n{tracking_code}\n\n"
         "💎 لطفاً این کد پیگیری را نزد خود نگه دارید.\n\n"
         "━━━━━━━━━━━━━━\n\n"
-        "🙏 ممنون از اعتماد شما به TRIX SHOP ❤️"
+        "🙏 ممنون از اعتماد شما به TRIX SHOP ❤️",
+        home_button()
     )
 
 
@@ -504,26 +543,17 @@ async def notify_admin(order, customer_chat_id):
     )
 
     if order.get("gmail"):
-        admin_text += (
-            "📧 جی‌میل:\n"
-            f"{order['gmail']}\n\n"
-        )
+        admin_text += f"📧 جی‌میل:\n{order['gmail']}\n\n"
 
     if order.get("account_name"):
-        admin_text += (
-            "👤 اسم اکانت:\n"
-            f"{order['account_name']}\n\n"
-        )
+        admin_text += f"👤 اسم اکانت:\n{order['account_name']}\n\n"
 
     if order.get("account_id"):
-        admin_text += (
-            "🆔 آیدی اکانت:\n"
-            f"{order['account_id']}\n\n"
-        )
+        admin_text += f"🆔 آیدی اکانت:\n{order['account_id']}\n\n"
 
     admin_text += (
         "🔐 رمز جیمیل:\n"
-        "🔒\n\n"
+        "دریافت یا ارسال نمی‌شود 🔒\n\n"
         "━━━━━━━━━━━━━━\n\n"
         "📩 پیام‌ها و فایل‌های مرحله اطلاعات سفارش در ادامه می‌آیند.\n"
         "🧾 رسید پرداخت نیز در ادامه ارسال می‌شود.\n\n"
@@ -536,7 +566,6 @@ async def notify_admin(order, customer_chat_id):
         admin_receipt_keypad(tracking_code)
     )
 
-    # اطلاعات مرحله اول فقط پس از دریافت رسید برای مدیر فرستاده می‌شوند.
     for item in order.get("info_messages", []):
         forwarded = await safe_forward_message(
             item["chat_id"],
@@ -550,7 +579,6 @@ async def notify_admin(order, customer_chat_id):
                 "📝 پیام ثبت‌شده مشتری:\n" + item["text"]
             )
 
-    # ارسال رسیدهای پرداخت
     for item in order.get("receipt_messages", []):
         forwarded = await safe_forward_message(
             item["chat_id"],
@@ -571,6 +599,9 @@ async def notify_admin(order, customer_chat_id):
 
 @bot.on_message(commands=["start"])
 async def start(bot: Robot, message: Message):
+    chat_id = get_chat_id(message)
+    remember_message(chat_id, get_message_id(message))
+
     await message.reply_keypad(
         "🤖 ربات خرید جم تریکس شاپ خوش آمدید 🫠\n\n"
         "📢 چنل اصلی آگهی اکانت: 👇\n"
@@ -603,6 +634,8 @@ async def normal_message(bot: Robot, message: Message):
     chat_id = get_chat_id(message)
     text = get_text(message)
     message_id = get_message_id(message)
+
+    remember_message(chat_id, message_id)
 
     # مدیر: دریافت توضیح رد رسید
     if chat_id == ADMIN_CHAT_ID and chat_id in admin_reject_waiting:
@@ -637,7 +670,8 @@ async def normal_message(bot: Robot, message: Message):
             f"{text}\n\n"
             "━━━━━━━━━━━━━━\n\n"
             f"🎫 کد پیگیری:\n{tracking_code}\n\n"
-            "📦 لطفاً توضیحات مدیر را بررسی کنید."
+            "📦 لطفاً توضیحات مدیر را بررسی کنید.",
+            home_button()
         )
 
         await message.reply(
@@ -645,7 +679,6 @@ async def normal_message(bot: Robot, message: Message):
         )
         return
 
-    # پیام‌های مدیر نباید به عنوان پیام مشتری پردازش شوند.
     if chat_id == ADMIN_CHAT_ID:
         return
 
@@ -656,10 +689,6 @@ async def normal_message(bot: Robot, message: Message):
 
     step = order.get("step")
 
-    # -----------------------------------------------------
-    # مرحله اطلاعات: فقط ذخیره می‌شود
-    # -----------------------------------------------------
-
     if step == "collecting_info":
         order.setdefault("info_messages", []).append({
             "message_id": message_id,
@@ -667,8 +696,6 @@ async def normal_message(bot: Robot, message: Message):
             "text": text
         })
 
-        # متن‌ها ذخیره می‌شوند، ولی هر متن دلخواهی را
-        # به صورت خودکار اسم یا آیدی حساب فرض نمی‌کنیم.
         if text:
             order.setdefault("info_texts", []).append(text)
 
@@ -679,10 +706,6 @@ async def normal_message(bot: Robot, message: Message):
             info_confirmation_keypad()
         )
         return
-
-    # -----------------------------------------------------
-    # مرحله دریافت رسید
-    # -----------------------------------------------------
 
     if step == "collecting_receipt":
         order.setdefault("receipt_messages", []).append({
@@ -718,6 +741,7 @@ async def all_callbacks(bot: Robot, message: Message):
         return
 
     chat_id = get_chat_id(message)
+    remember_message(chat_id, get_message_id(message))
 
     logger.info(
         "[CALLBACK] chat_id=%s button_id=%s",
@@ -738,6 +762,20 @@ async def all_callbacks(bot: Robot, message: Message):
     if is_admin_button and chat_id != ADMIN_CHAT_ID:
         await message.reply(
             "⛔ این دکمه فقط برای مدیر ربات قابل استفاده است."
+        )
+        return
+
+    # -----------------------------------------------------
+    # بازگشت به صفحه اصلی
+    # -----------------------------------------------------
+
+    if button_id == "back_home":
+        await clean_chat(chat_id)
+
+        await message.reply_keypad(
+            "🏠 به صفحه اصلی برگشتید.\n\n"
+            "یکی از گزینه‌های زیر را انتخاب کنید:",
+            main_menu()
         )
         return
 
@@ -790,8 +828,8 @@ async def all_callbacks(bot: Robot, message: Message):
         return
 
     # -----------------------------------------------------
-    # *** اصلاح اصلی ***
-    # تأیید اطلاعات باید قبل از شرط confirm_ بررسی شود.
+    # تأیید اطلاعات
+    # این شرط باید قبل از startswith("confirm_") باشد.
     # -----------------------------------------------------
 
     if button_id == "confirm_information":
@@ -810,7 +848,6 @@ async def all_callbacks(bot: Robot, message: Message):
             )
             return
 
-        # ارسال اطلاعات پرداخت
         await send_payment_info(message, order)
         return
 
@@ -836,7 +873,6 @@ async def all_callbacks(bot: Robot, message: Message):
 
     # -----------------------------------------------------
     # تأیید اولیه سفارش
-    # این شرط اکنون بعد از confirm_information قرار دارد.
     # -----------------------------------------------------
 
     if button_id.startswith("confirm_"):
@@ -911,12 +947,13 @@ async def all_callbacks(bot: Robot, message: Message):
         await safe_send_message(
             customer_chat_id,
             "✅ رسید پرداخت شما تأیید شد.\n\n"
-            "🔄 وضعیت سفارش شما:\n"
-            "🟡در حال انجام سفارش\n\n"
-            "━━━━━━━━━━━━━━━━━\n\n"
+            "🟡 وضعیت سفارش شما:\n"
+            "در حال انجام سفارش\n\n"
+            "━━━━━━━━━━━━━━\n\n"
             f"🎫 کد پیگیری:\n{tracking_code}\n\n"
             "💎 لطفاً منتظر تکمیل سفارش باشید.\n\n"
-            "🙏 ممنون از اعتماد شما به TRIX SHOP ❤️"
+            "🙏 ممنون از اعتماد شما به TRIX SHOP ❤️",
+            home_button()
         )
 
         await safe_send_message(
@@ -995,10 +1032,11 @@ async def all_callbacks(bot: Robot, message: Message):
             f"💎 بسته:\n{package['name']}\n\n"
             f"💰 قیمت:\n{package['price']}\n\n"
             f"🎫 کد پیگیری:\n{tracking_code}\n\n"
-            "━━━━━━━━━━━━━━━━━━\n\n"
+            "━━━━━━━━━━━━━━\n\n"
             "✅ سفارش شما با موفقیت انجام شد.\n\n"
             "ممنونم بابت انتخابتون\n"
-            "𝐓𝐑𝐈𝐗 𝐒𝐇𝐎𝐏 ❤️"
+            "𝐓𝐑𝐈𝐗 𝐒𝐇𝐎𝐏 ❤️",
+            home_button()
         )
 
         await message.reply(
@@ -1017,19 +1055,21 @@ async def all_callbacks(bot: Robot, message: Message):
         order = pending_orders.get(chat_id)
 
         if not order:
-            await message.reply(
-                "📦 در حال حاضر سفارش فعالی برای شما پیدا نشد."
+            await message.reply_keypad(
+                "📦 در حال حاضر سفارش فعالی برای شما پیدا نشد.",
+                home_button()
             )
             return
 
-        await message.reply(
+        await message.reply_keypad(
             "📦 سفارش شما\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "━━━━━━━━━━━━━━\n\n"
             f"🎫 کد پیگیری:\n{order['tracking_code']}\n\n"
             f"💎 محصول:\n{order['package']['name']}\n\n"
             f"💰 مبلغ:\n{order['package']['price']}\n\n"
             f"📌 وضعیت:\n{get_order_status_text(order)}\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━"
+            "━━━━━━━━━━━━━━",
+            home_button()
         )
         return
 
@@ -1038,10 +1078,11 @@ async def all_callbacks(bot: Robot, message: Message):
     # -----------------------------------------------------
 
     if button_id == "support":
-        await message.reply(
+        await message.reply_keypad(
             "🆘 برای پشتیبانی با مدیر فروشگاه در ارتباط باشید.\n\n"
             f"📢 کانال: {SHOP_USERNAME}\n"
-            f"🔗 {SHOP_LINK}"
+            f"🔗 {SHOP_LINK}",
+            home_button()
         )
         return
 
