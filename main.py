@@ -9,10 +9,6 @@ import time
 from rubka import Robot, Message
 from rubka.keypad import ChatKeypadBuilder
 
-=========================================================
-تنظیمات
-=========================================================
-
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 if not BOT_TOKEN:
